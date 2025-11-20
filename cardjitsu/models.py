@@ -5,7 +5,6 @@ from sqlalchemy import UniqueConstraint
 
 db = SQLAlchemy()
 
-
 class User(db.Model):
     __tablename__ = "users"
 
@@ -37,7 +36,7 @@ class Card(db.Model):
     __tablename__ = "cards"
 
     id = db.Column(db.Integer, primary_key=True)
-    element = db.Column(db.String(16), nullable=False)  # "fire", "water", "snow"
+    element = db.Column(db.String(16), nullable=False)  # "fire", "water", "grass"
     power = db.Column(db.Integer, nullable=False)        # e.g., 1–12
     colour = db.Column(db.String(16), nullable=True)  
     name = db.Column(db.String(64), nullable=False)
@@ -160,7 +159,7 @@ def seed_cards(session=None) -> None:
         session = db.session
     if session.query(Card).count() > 0:
         return
-    elements = ["fire", "water", "snow"]
+    elements = ["fire", "water", "grass"]
     colours = ["red", "blue", "yellow", "green", "purple", "orange"]
     for element in elements:
         for power in range(1,13):
