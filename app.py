@@ -5,7 +5,15 @@ from flask import Flask, request, jsonify, g
 import jwt
 from functools import wraps
 
-from cardjitsu.models import db, seed_cards, Card, User, UserCard  # from your models.py
+from cardjitsu.models import (
+    db,
+    seed_cards,
+    Card,
+    User,
+    UserCard,
+    Deck,
+    DeckCard,
+)
 
 
 def create_app():
@@ -167,6 +175,117 @@ def create_app():
         ]
 
         return jsonify({"cards": cards_payload})
+        # ---------- DECK ENDPOINTS ----------
+
+    # POST /api/decks
+    # Body: { "name": "My Deck", "user_card_ids": [1,2,...,10] }
+    @app.post("/api/decks")
+    @auth_required
+    def create_or_replace_deck():
+        user = g.current_user
+        data = request.get_json() or {}
+
+        name = (data.get("name") or "Main Deck").strip()
+        user_card_ids = data.get("user_card_ids") or []
+
+        # must have exactly 10 cards
+        if not isinstance(user_card_ids, list) or len(user_card_ids) != 10:
+            return (
+                jsonify(
+                    {
+                        "error": "Deck must contain exactly 10 cards",
+                        "got": len(user_card_ids),
+                    }
+                ),
+                400,
+            )
+
+        # load the UserCard rows for this user and these ids
+        rows = (
+            UserCard.query.filter(
+                UserCard.user_id == user.id,
+                UserCard.id.in_(user_card_ids),
+            ).all()
+        )
+
+        if len(rows) != 10:
+            return jsonify({"error": "One or more cards do not belong to this user"}), 400
+
+        # deactivate existing decks
+        Deck.query.filter_by(user_id=user.id, is_active=True).update(
+            {"is_active": False}
+        )
+
+        # create new deck
+        deck = Deck(user_id=user.id, name=name, is_active=True)
+        db.session.add(deck)
+        db.session.flush()  # get deck.id before adding DeckCard rows
+
+        # create DeckCard rows using the underlying Card ids
+        for uc in rows:
+            db.session.add(DeckCard(deck_id=deck.id, card_id=uc.card_id))
+
+        db.session.commit()
+
+        return (
+            jsonify(
+                {
+                    "message": "deck created",
+                    "deck": {
+                        "id": deck.id,
+                        "name": deck.name,
+                        "is_active": deck.is_active,
+                    },
+                }
+            ),
+            201,
+        )
+
+    # GET /api/decks/active
+    @app.get("/api/decks/active")
+    @auth_required
+    def get_active_deck():
+        user = g.current_user
+
+        deck = (
+            Deck.query.filter_by(user_id=user.id, is_active=True)
+            .order_by(Deck.created_at.desc())
+            .first()
+        )
+
+        if not deck:
+            return jsonify({"deck": None}), 200
+
+        # join DeckCard -> Card
+        rows = (
+            db.session.query(DeckCard, Card)
+            .join(Card, DeckCard.card_id == Card.id)
+            .filter(DeckCard.deck_id == deck.id)
+            .all()
+        )
+
+        cards_payload = [
+            {
+                "deck_card_id": dc.id,
+                "card_id": c.id,
+                "element": c.element,
+                "power": c.power,
+                "colour": c.colour,
+                "name": c.name,
+            }
+            for dc, c in rows
+        ]
+
+        return jsonify(
+            {
+                "deck": {
+                    "id": deck.id,
+                    "name": deck.name,
+                    "is_active": deck.is_active,
+                    "cards": cards_payload,
+                }
+            }
+        )
 
     return app
 
