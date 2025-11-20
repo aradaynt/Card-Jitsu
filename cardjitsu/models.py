@@ -88,7 +88,7 @@ class DeckCard(db.Model):
     """Join table between Deck and Card (10 rows per deck)."""
 
     __tablename__ = "deck_cards"
-    __table_args__ = (UniqueConstraint("deck_id", "card_id", name="uq_deck_card"))
+    __table_args__ = (UniqueConstraint("deck_id", "card_id", name="uq_deck_card"),)
 
     id = db.Column(db.Integer, primary_key=True)
     deck_id = db.Column(db.Integer, db.ForeignKey("decks.id"), nullable=False)

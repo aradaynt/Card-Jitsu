@@ -1,5 +1,5 @@
 from flask import Flask
-from .cardjitsu.models import db
+from cardjitsu.models import db
 
 def create_app():
     app = Flask(__name__)
