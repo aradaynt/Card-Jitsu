@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Room - Card-Jitsu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+
+        h1 {
+            color: #333366;
+        }
+
+        button {
+            margin: 10px 5px 0 0;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .secondary {
+            background-color: #777;
+        }
+
+        .secondary:hover {
+            background-color: #666;
+        }
+
+        #hand-container {
+            margin-top: 20px;
+        }
+
+        .hand-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .card-tile {
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .card-meta {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .card-footer {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #status-message {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .info {
+            color: #333;
+        }
+
+        #played-log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Room Prototype</h1>
+    <p>
+        This is a prototype room using your active deck.<br>
+        You will see 5 random cards from your deck at a time. Select one and play it.
+    </p>
+
+    <div id="status-message" class="info"></div>
+
+    <div id="hand-container">
+        <!-- Hand will be rendered here -->
+    </div>
+
+    <button id="play-button">Play Selected Card</button>
+    <button class="secondary" onclick="goHome()">Home</button>
+
+    <div id="played-log">
+        <strong>Played cards:</strong>
+        <div id="played-list"></div>
+    </div>
+
+    <script>
+        function goHome() {
+            window.location.href = "/home";
+        }
+
+        const cardColorStyles = {
+            red: { bg: "#ff7b7b", text: "#ffffff" },
+            blue: { bg: "#6fa8ff", text: "#ffffff" },
+            yellow: { bg: "#ffe97a", text: "#000000" },
+            green: { bg: "#7be27b", text: "#000000" },
+            purple: { bg: "#c28aff", text: "#ffffff" },
+            orange: { bg: "#ffb66b", text: "#000000" },
+        };
+
+        let deckCards = [];   // all 10 deck cards from the API
+        let drawPile = [];    // cards left to draw
+        let hand = [];        // up to 5 cards currently in hand
+        let selectedCardId = null; // deck_card_id or index in hand (we'll use index)
+
+        function showMessage(text, isError = false) {
+            const msg = document.getElementById("status-message");
+            msg.textContent = text;
+            msg.classList.toggle("error", isError);
+            msg.classList.toggle("info", !isError);
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function initHand() {
+            // Start from deckCards -> clone -> shuffle -> split into hand + drawPile
+            drawPile = deckCards.slice();
+            shuffleArray(drawPile);
+
+            hand = drawPile.splice(0, 5); // first 5 become hand
+            selectedCardId = null;
+            renderHand();
+            showMessage("Your hand is ready. Select a card and press 'Play Selected Card'.");
+        }
+
+        function renderHand() {
+            const container = document.getElementById("hand-container");
+            container.innerHTML = "";
+
+            if (!hand.length) {
+                container.innerHTML = "<p>You have no cards left in your deck.</p>";
+                return;
+            }
+
+            const grid = document.createElement("div");
+            grid.className = "hand-grid";
+
+            hand.forEach((card, index) => {
+                const tile = document.createElement("div");
+                tile.className = "card-tile";
+
+                const colourKey = (card.colour || "").toLowerCase();
+                const style = cardColorStyles[colourKey] || { bg: "#ffffff", text: "#000000" };
+                tile.style.backgroundColor = style.bg;
+                tile.style.color = style.text;
+
+                const title = document.createElement("div");
+                title.className = "card-title";
+                title.textContent = card.name;
+
+                const meta = document.createElement("div");
+                meta.className = "card-meta";
+                meta.innerHTML = `
+                    Element: <strong>${card.element.toUpperCase()}</strong><br>
+                    Power: <strong>${card.power}</strong><br>
+                    Colour: <strong>${card.colour}</strong>
+                `;
+
+                const footer = document.createElement("div");
+                footer.className = "card-footer";
+
+                const radio = document.createElement("input");
+                radio.type = "radio";
+                radio.name = "selected-card";
+                radio.value = index;
+                radio.checked = selectedCardId === index;
+                radio.onchange = () => {
+                    selectedCardId = index;
+                };
+
+                const label = document.createElement("label");
+                label.textContent = "Select";
+
+                footer.appendChild(radio);
+                footer.appendChild(label);
+
+                tile.appendChild(title);
+                tile.appendChild(meta);
+                tile.appendChild(footer);
+
+                grid.appendChild(tile);
+            });
+
+            container.appendChild(grid);
+        }
+
+        function logPlayedCard(card) {
+            const list = document.getElementById("played-list");
+            const entry = document.createElement("div");
+            entry.textContent = `You played: ${card.name} [${card.element.toUpperCase()} ${card.power}, ${card.colour}]`;
+            list.appendChild(entry);
+        }
+
+        function playSelectedCard() {
+            if (selectedCardId === null || selectedCardId === undefined) {
+                showMessage("Please select a card to play.", true);
+                return;
+            }
+
+            if (selectedCardId < 0 || selectedCardId >= hand.length) {
+                showMessage("Invalid card selection.", true);
+                return;
+            }
+
+            const played = hand[selectedCardId];
+
+            // Log the played card
+            logPlayedCard(played);
+            showMessage(`You played ${played.name}!`, false);
+
+            // Remove it from hand
+            hand.splice(selectedCardId, 1);
+
+            // Draw a new one from drawPile if available
+            if (drawPile.length > 0) {
+                const newCard = drawPile.shift();
+                hand.push(newCard);
+            }
+
+            // Reset selection
+            selectedCardId = null;
+            renderHand();
+        }
+
+        async function loadDeck() {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                window.location.href = "/login";
+                return;
+            }
+
+            try {
+                const resp = await fetch("/api/decks/active", {
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    showMessage(data.error || "Failed to load active deck", true);
+                    return;
+                }
+
+                const data = await resp.json();
+                if (!data.deck || !data.deck.cards || !data.deck.cards.length) {
+                    showMessage("You don't have an active deck yet. Build one first!", true);
+                    return;
+                }
+
+                deckCards = data.deck.cards;
+                initHand();
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error while loading deck", true);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("play-button").addEventListener("click", playSelectedCard);
+            loadDeck();
+        });
+    </script>
+</body>
+
+</html>
