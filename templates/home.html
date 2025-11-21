@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Card-Jitsu Home</title>
+    <script>
+        function goToDeckBuilder() {
+            window.location.href = "/deckbuilding";
+        }
+        function goToRulesPage() {
+            window.location.href = "/rules";
+        }
+        function goToMyDeck() {
+            window.location.href = "/mydeck";
+        }
+
+        async function checkDeck() {
+            const token = localStorage.getItem("token");
+            const myDeckBtn = document.getElementById("mydeckbutton");
+
+            if (!myDeckBtn) return;
+
+            // If not logged in, don't show the button
+            if (!token) {
+                myDeckBtn.style.display = "none";
+                return;
+            }
+
+            try {
+                const resp = await fetch("/api/decks/active", {
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                if (!resp.ok) {
+                    // token invalid / expired etc.
+                    myDeckBtn.style.display = "none";
+                    return;
+                }
+
+                const data = await resp.json();
+                if (data.deck && data.deck.cards && data.deck.cards.length > 0) {
+                    // Deck exists -> show button
+                    myDeckBtn.style.display = "inline-block";
+                } else {
+                    myDeckBtn.style.display = "none";
+                }
+            } catch (err) {
+                console.error(err);
+                myDeckBtn.style.display = "none";
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            checkDeck();
+        });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+
+        h1 {
+            color: #333366;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .secondary {
+            background-color: #555;
+        }
+
+        .secondary:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Welcome to Card-Jitsu!</h1>
+    <p>Your journey to becoming a Card-Jitsu master begins here. Choose your path and start training today!</p>
+
+    <button id="rulesbutton" onclick="goToRulesPage()">Game Info and Rules</button>
+
+    <p>You have been assigned 15 random cards. Make a deck with 10 cards.</p>
+
+    <button id="deckbuilderbutton" onclick="goToDeckBuilder()">Build your deck</button>
+
+    <button id="mydeckbutton" class="secondary" style="display: none;" onclick="goToMyDeck()">
+        My Deck
+    </button>
+
+    <br>
+    <form>
+        <label>Room Code</label>
+        <input type="text" name="roomcode" />
+        <button type="submit">Join Game</button>
+    </form>
+</body>
+
+</html>

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import UniqueConstraint
@@ -75,7 +75,7 @@ class Deck(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     name = db.Column(db.String(64), nullable=False, default="Main Deck")
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     user = db.relationship("User", back_populates="decks")
     cards = db.relationship("DeckCard", back_populates="deck", cascade="all, delete-orphan")
@@ -110,7 +110,7 @@ class Room(db.Model):
 
     status = db.Column(db.String(16), default="waiting", nullable=False)  # "waiting", "active", "finished"
 
-    created_at = db.Column(db.DateTime, default=datetime.now(), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     started_at = db.Column(db.DateTime, nullable=True)
     ended_at = db.Column(db.DateTime, nullable=True)
 
@@ -140,7 +140,7 @@ class Move(db.Model):
     resolved = db.Column(db.Boolean, default=False, nullable=False)
     winner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.now(), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     room = db.relationship("Room", back_populates="moves")
     player1_card = db.relationship("Card", foreign_keys=[player1_card_id])

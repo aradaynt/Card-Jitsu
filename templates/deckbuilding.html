@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deck Building - Card-Jitsu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+
+        h1 {
+            color: #333366;
+        }
+
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .secondary {
+            background-color: #777;
+        }
+
+        .secondary:hover {
+            background-color: #666;
+        }
+
+        #card-selection {
+            margin-top: 20px;
+        }
+
+        .card-row {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #ffffff;
+        }
+
+        .card-info {
+            font-size: 14px;
+        }
+
+        #status-message {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+
+        #selected-count {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Deck Building</h1>
+    <p>Select exactly 10 cards from your collection to build your deck.</p>
+
+    <div id="selected-count">Selected: 0 / 10</div>
+    <div id="status-message"></div>
+
+    <div id="card-selection">
+        <!-- Cards will be injected here -->
+    </div>
+
+    <button id="finalize-deck">Finalize Deck</button>
+    <button class="homebutton secondary" onclick="goHome()">Home</button>
+
+    <script>
+        function goHome() {
+            window.location.href = "/home";
+        }
+
+        const selectedUserCardIds = new Set();
+        let cardsData = [];
+
+        function showMessage(text, isError = false) {
+            const msg = document.getElementById("status-message");
+            msg.textContent = text;
+            msg.classList.toggle("error", isError);
+            msg.classList.toggle("success", !isError && text !== "");
+        }
+
+        function updateSelectedCount() {
+            const countDiv = document.getElementById("selected-count");
+            countDiv.textContent = `Selected: ${selectedUserCardIds.size} / 10`;
+        }
+
+        function toggleSelect(userCardId) {
+            if (selectedUserCardIds.has(userCardId)) {
+                selectedUserCardIds.delete(userCardId);
+                showMessage("");
+            } else {
+                if (selectedUserCardIds.size >= 10) {
+                    showMessage("You can only select 10 cards for your deck.", true);
+                    return;
+                }
+                selectedUserCardIds.add(userCardId);
+                showMessage("");
+            }
+            renderCards(); // re-render buttons
+            updateSelectedCount();
+        }
+
+        function renderCards() {
+            const container = document.getElementById("card-selection");
+            container.innerHTML = "";
+
+            if (!cardsData.length) {
+                container.textContent = "No cards found. Did you register correctly?";
+                return;
+            }
+
+            cardsData.forEach(card => {
+                const row = document.createElement("div");
+                row.className = "card-row";
+
+                const info = document.createElement("div");
+                info.className = "card-info";
+                // Example: "Fire 7 (Red) - Fire 7 Red Card Name"
+                info.textContent = `${card.element.toUpperCase()} ${card.power} (${card.colour}) - ${card.name}`;
+
+                const btn = document.createElement("button");
+                const isSelected = selectedUserCardIds.has(card.user_card_id);
+
+                btn.textContent = isSelected ? "Deselect" : "Select";
+                btn.onclick = () => toggleSelect(card.user_card_id);
+
+                row.appendChild(info);
+                row.appendChild(btn);
+                container.appendChild(row);
+            });
+        }
+
+        async function loadUserCards() {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                // Not logged in → send them to login
+                window.location.href = "/login";
+                return;
+            }
+
+            try {
+                const resp = await fetch("/api/user/cards", {
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    showMessage(data.error || "Failed to load cards", true);
+                    return;
+                }
+
+                const data = await resp.json();
+                cardsData = data.cards || [];
+                renderCards();
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error while loading cards", true);
+            }
+        }
+
+        async function finalizeDeck() {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                window.location.href = "/login";
+                return;
+            }
+
+            if (selectedUserCardIds.size !== 10) {
+                showMessage("Your deck must contain exactly 10 cards before finalizing.", true);
+                return;
+            }
+
+            const body = {
+                name: "Main Deck",
+                user_card_ids: Array.from(selectedUserCardIds),
+            };
+
+            try {
+                const resp = await fetch("/api/decks", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token,
+                    },
+                    body: JSON.stringify(body),
+                });
+
+                const data = await resp.json().catch(() => ({}));
+
+                if (!resp.ok) {
+                    showMessage(data.error || "Failed to create deck", true);
+                    return;
+                }
+
+                showMessage("Deck created successfully!", false);
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error while creating deck", true);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("finalize-deck").addEventListener("click", finalizeDeck);
+            loadUserCards();
+        });
+    </script>
+</body>
+
+</html>

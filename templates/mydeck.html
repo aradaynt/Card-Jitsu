@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Deck - Card-Jitsu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+
+        h1 {
+            color: #333366;
+        }
+
+        button {
+            margin: 10px 5px 0 0;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .secondary {
+            background-color: #777;
+        }
+
+        .secondary:hover {
+            background-color: #666;
+        }
+
+        #deck-container {
+            margin-top: 20px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .card-tile {
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .card-meta {
+            font-size: 14px;
+        }
+
+        #status-message {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>My Deck</h1>
+    <p>Here is your currently active deck.</p>
+
+    <div id="status-message"></div>
+
+    <div id="deck-container">
+        <!-- Deck details go here -->
+    </div>
+
+    <button onclick="goHome()">Home</button>
+    <button class="secondary" onclick="goToDeckBuilder()">Edit Deck</button>
+
+    <script>
+        function goHome() {
+            window.location.href = "/home";
+        }
+
+        function goToDeckBuilder() {
+            window.location.href = "/deckbuilding";
+        }
+
+        // Map logical colours from the DB to actual background + text colors
+        const cardColorStyles = {
+            red: { bg: "#ff7b7b", text: "#ffffff" },
+            blue: { bg: "#6fa8ff", text: "#ffffff" },
+            yellow: { bg: "#ffe97a", text: "#000000" },
+            green: { bg: "#7be27b", text: "#000000" },
+            purple: { bg: "#c28aff", text: "#ffffff" },
+            orange: { bg: "#ffb66b", text: "#000000" },
+        };
+
+        function showMessage(text, isError = false) {
+            const msg = document.getElementById("status-message");
+            msg.textContent = text;
+            msg.classList.toggle("error", isError);
+        }
+
+        async function loadDeck() {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                // not logged in – kick them to login
+                window.location.href = "/login";
+                return;
+            }
+
+            try {
+                const resp = await fetch("/api/decks/active", {
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    showMessage(data.error || "Failed to load deck", true);
+                    return;
+                }
+
+                const data = await resp.json();
+                const deck = data.deck;
+                const container = document.getElementById("deck-container");
+
+                if (!deck) {
+                    showMessage("You don't have an active deck yet. Build one first!", true);
+                    container.innerHTML = "";
+                    return;
+                }
+
+                showMessage("");
+                container.innerHTML = "";
+
+                const header = document.createElement("h2");
+                header.textContent = `${deck.name} (Cards: ${deck.cards.length})`;
+                container.appendChild(header);
+
+                const grid = document.createElement("div");
+                grid.className = "card-grid";
+
+                deck.cards.forEach(card => {
+                    const tile = document.createElement("div");
+                    tile.className = "card-tile";
+
+                    // Pick colors based on card.colour (fallback to neutral)
+                    const colourKey = (card.colour || "").toLowerCase();
+                    const style = cardColorStyles[colourKey] || { bg: "#ffffff", text: "#000000" };
+
+                    tile.style.backgroundColor = style.bg;
+                    tile.style.color = style.text;
+
+                    const title = document.createElement("div");
+                    title.className = "card-title";
+                    title.textContent = card.name;
+
+                    const meta = document.createElement("div");
+                    meta.className = "card-meta";
+                    meta.innerHTML = `
+                    Element: <strong>${card.element.toUpperCase()}</strong><br>
+                    Power: <strong>${card.power}</strong><br>
+                    Colour: <strong>${card.colour}</strong>
+                `;
+
+                    tile.appendChild(title);
+                    tile.appendChild(meta);
+                    grid.appendChild(tile);
+                });
+
+                container.appendChild(grid);
+
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error while loading deck", true);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", loadDeck);
+    </script>
+</body>
+
+</html>

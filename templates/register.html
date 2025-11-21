@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Register - Card-Jitsu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f8ff;
+        }
+
+        h1 {
+            color: #333366;
+        }
+
+        form {
+            max-width: 300px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .message {
+            margin-top: 10px;
+            color: #333;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .link {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Create an Account</h1>
+
+    <form id="register-form">
+        <label for="username">Username</label>
+        <input id="username" name="username" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required />
+
+        <button type="submit">Register</button>
+    </form>
+
+    <div id="message" class="message"></div>
+
+    <div class="link">
+        Already have an account?
+        <a href="/login">Log in</a>
+    </div>
+
+    <script>
+        const form = document.getElementById("register-form");
+        const messageDiv = document.getElementById("message");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            messageDiv.textContent = "";
+
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value.trim();
+
+            try {
+                const resp = await fetch("/api/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    messageDiv.textContent = data.error || "Registration failed";
+                    messageDiv.classList.add("error");
+                    return;
+                }
+
+                // Save the token for later API calls
+                localStorage.setItem("token", data.token);
+                messageDiv.classList.remove("error");
+                messageDiv.textContent = "Registered successfully! Redirecting to home...";
+
+                // redirect to home (Flask route)
+                setTimeout(() => {
+                    window.location.href = "/home";
+                }, 800);
+            } catch (err) {
+                console.error(err);
+                messageDiv.textContent = "Network error";
+                messageDiv.classList.add("error");
+            }
+        });
+    </script>
+</body>
+
+</html>

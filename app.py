@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, render_template
 import jwt
 from functools import wraps
 
@@ -38,9 +38,9 @@ def create_app():
     def create_token(user_id: int) -> str:
         """Create a JWT that expires in 24 hours."""
         payload = {
-            "sub": user_id,
-            "iat": datetime.utcnow(),
-            "exp": datetime.utcnow() + timedelta(hours=24),
+            "sub": str(user_id),
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=24),
         }
         return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
 
@@ -66,7 +66,12 @@ def create_app():
             except jwt.InvalidTokenError:
                 return jsonify({"error": "Invalid token"}), 401
 
-            user = User.query.get(payload["sub"])
+            try:
+                user_id = int(payload["sub"])
+            except (KeyError, ValueError, TypeError):
+                return jsonify({"error": "Invalid token payload"}), 401
+
+            user = User.query.get(user_id)
             if not user:
                 return jsonify({"error": "User not found"}), 404
 
@@ -79,7 +84,7 @@ def create_app():
 
     @app.route("/")
     def index():
-        return "Card-Jitsu backend is running!"
+        return render_template("login.html")
 
     # POST /api/register  { "username": "...", "password": "..." }
     @app.post("/api/register")
@@ -286,6 +291,30 @@ def create_app():
                 }
             }
         )
+    
+    @app.get("/home")
+    def home_page():
+        return render_template("home.html")
+
+    @app.get("/rules")
+    def rules_page():
+        return render_template("rules.html")
+
+    @app.get("/deckbuilding")
+    def deckbuilding_page():
+        return render_template("deckbuilding.html")
+
+    @app.get("/register")
+    def register_page():
+        return render_template("register.html")
+
+    @app.get("/login")
+    def login_page():
+        return render_template("login.html")
+    
+    @app.get("/mydeck")
+    def mydeck_page():
+        return render_template("mydeck.html")
 
     return app
 
