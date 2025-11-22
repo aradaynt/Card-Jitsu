@@ -10,9 +10,9 @@ Each card also has a power number (1-12), and a color
 <ol>
     <li>Elements follow rock-paper-scissors logic
     <ul>
-        <li>Fire beats Snow
-        <li>Snow beats Grass
-        <li>Grass beats Fire
+        <li>Fire beats Grass
+        <li>Grass beats Water
+        <li>Water beats Fire
     </ul>
     <li>If both cards are the same element, the higher power number wins
     <li>Players reveal cards simultaneously
@@ -121,7 +121,7 @@ Relationships:<br>
 | Attribute     | Type  | Description       |
 | :---:         | :---: | :---:             |
 |id|int|Primary Key|
-|element|str|"fire","water","snow"|
+|element|str|"fire","water","grass"|
 |power|int|1-12|
 |colour|str|"red", "blue", "yellow", "green", "purple", "orange"|
 |name|str|"fire 12 blue"|

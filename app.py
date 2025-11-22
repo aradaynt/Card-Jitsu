@@ -315,6 +315,11 @@ def create_app():
     @app.get("/mydeck")
     def mydeck_page():
         return render_template("mydeck.html")
+    
+    @app.get("/room")
+    def room_page():
+        # prototype single-player room using active deck
+        return render_template("room.html")
 
     return app
 
