@@ -93,21 +93,42 @@
             border-radius: 6px;
             border: 1px solid #ccc;
         }
+
+        #room-info {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 
 <body>
-    <h1>Room Prototype</h1>
+    <h1>Room</h1>
+    <div id="current-user" style="font-weight: bold; margin-bottom: 10px;"></div>
+
+    <!-- ROOM CONTROLS -->
+    <div id="room-controls" style="margin-bottom: 20px;">
+        <button id="create-room-btn" class="btn">Create Room</button>
+
+        <input id="join-room-input"
+               type="text"
+               placeholder="Enter room code"
+               style="padding: 8px; margin-left:10px;" />
+
+        <button id="join-room-btn" class="btn">Join Room</button>
+
+        <div id="room-info">
+            <p id="room-status" style="font-weight:bold; margin-top:10px;"></p>
+            <p id="score-line" style="margin-top:4px;"></p>
+        </div>
+    </div>
+
     <p>
-        This is a prototype room using your active deck.<br>
-        You will see 5 random cards from your deck at a time. Select one and play it.
+        You will see 5 random cards from your active deck.<br>
+        Select one and play it.
     </p>
 
     <div id="status-message" class="info"></div>
 
-    <div id="hand-container">
-        <!-- Hand will be rendered here -->
-    </div>
+    <div id="hand-container"></div>
 
     <button id="play-button">Play Selected Card</button>
     <button class="secondary" onclick="goHome()">Home</button>
@@ -122,6 +143,37 @@
             window.location.href = "/home";
         }
 
+        function resetMatchUI() {
+            hand = [];
+            drawPile = [];
+            selectedCardId = null;
+
+            // Clear played log + message
+            document.getElementById("played-list").innerHTML = "";
+            showMessage("");
+
+            // Rebuild a fresh hand if we already have deckCards
+            if (deckCards && deckCards.length > 0) {
+                initHand();
+            } else {
+                renderHand(); // fallback, probably empty
+            }
+        }
+
+
+        const token = localStorage.getItem("token");
+
+        const loggedInUser = localStorage.getItem("username");
+
+        document.getElementById("current-user").textContent =
+            "Logged in as: " + (loggedInUser || "Unknown");
+
+
+        if (!token) {
+            window.location.href = "/login";
+        }
+
+        // COLOR STYLES FOR CARDS
         const cardColorStyles = {
             red: { bg: "#ff7b7b", text: "#ffffff" },
             blue: { bg: "#6fa8ff", text: "#ffffff" },
@@ -131,10 +183,17 @@
             orange: { bg: "#ffb66b", text: "#000000" },
         };
 
-        let deckCards = [];   // all 10 deck cards from the API
-        let drawPile = [];    // cards left to draw
-        let hand = [];        // up to 5 cards currently in hand
-        let selectedCardId = null; // deck_card_id or index in hand (we'll use index)
+        let deckCards = [];
+        let drawPile = [];
+        let hand = [];
+        let selectedCardId = null;
+
+        let currentRoomCode = null;
+        let roomPollInterval = null;
+
+        const joinInput = document.getElementById("join-room-input");
+        const roomStatusP = document.getElementById("room-status");
+        const scoreLineP = document.getElementById("score-line");
 
         function showMessage(text, isError = false) {
             const msg = document.getElementById("status-message");
@@ -150,23 +209,24 @@
             }
         }
 
+        // Initialize hand of 5
         function initHand() {
-            // Start from deckCards -> clone -> shuffle -> split into hand + drawPile
             drawPile = deckCards.slice();
             shuffleArray(drawPile);
 
-            hand = drawPile.splice(0, 5); // first 5 become hand
+            hand = drawPile.splice(0, 5);
             selectedCardId = null;
             renderHand();
-            showMessage("Your hand is ready. Select a card and press 'Play Selected Card'.");
+            showMessage("Your hand is ready. Select a card.");
         }
 
+        // Render card hand
         function renderHand() {
             const container = document.getElementById("hand-container");
             container.innerHTML = "";
 
             if (!hand.length) {
-                container.innerHTML = "<p>You have no cards left in your deck.</p>";
+                container.innerHTML = "<p>You have no cards left.</p>";
                 return;
             }
 
@@ -177,43 +237,31 @@
                 const tile = document.createElement("div");
                 tile.className = "card-tile";
 
-                const colourKey = (card.colour || "").toLowerCase();
-                const style = cardColorStyles[colourKey] || { bg: "#ffffff", text: "#000000" };
+                const style = cardColorStyles[(card.colour || "").toLowerCase()] || { bg: "#fff", text: "#000" };
                 tile.style.backgroundColor = style.bg;
                 tile.style.color = style.text;
 
-                const title = document.createElement("div");
-                title.className = "card-title";
-                title.textContent = card.name;
-
-                const meta = document.createElement("div");
-                meta.className = "card-meta";
-                meta.innerHTML = `
-                    Element: <strong>${card.element.toUpperCase()}</strong><br>
-                    Power: <strong>${card.power}</strong><br>
-                    Colour: <strong>${card.colour}</strong>
+                tile.innerHTML = `
+                    <div class="card-title">${card.name}</div>
+                    <div class="card-meta">
+                        Element: <strong>${card.element.toUpperCase()}</strong><br>
+                        Power: <strong>${card.power}</strong><br>
+                        Colour: <strong>${card.colour}</strong>
+                    </div>
                 `;
 
+                // select button
                 const footer = document.createElement("div");
                 footer.className = "card-footer";
-
                 const radio = document.createElement("input");
                 radio.type = "radio";
                 radio.name = "selected-card";
                 radio.value = index;
                 radio.checked = selectedCardId === index;
-                radio.onchange = () => {
-                    selectedCardId = index;
-                };
-
-                const label = document.createElement("label");
-                label.textContent = "Select";
+                radio.onchange = () => (selectedCardId = index);
 
                 footer.appendChild(radio);
-                footer.appendChild(label);
-
-                tile.appendChild(title);
-                tile.appendChild(meta);
+                footer.appendChild(document.createTextNode(" Select"));
                 tile.appendChild(footer);
 
                 grid.appendChild(tile);
@@ -225,64 +273,189 @@
         function logPlayedCard(card) {
             const list = document.getElementById("played-list");
             const entry = document.createElement("div");
-            entry.textContent = `You played: ${card.name} [${card.element.toUpperCase()} ${card.power}, ${card.colour}]`;
+            entry.textContent = `You played: ${card.name} (${card.element.toUpperCase()} ${card.power}, ${card.colour})`;
             list.appendChild(entry);
         }
 
-        function playSelectedCard() {
-            if (selectedCardId === null || selectedCardId === undefined) {
+        // ----- ROOM STATE POLLING -----
+        async function fetchRoomState() {
+            if (!currentRoomCode) return;
+
+            try {
+                const resp = await fetch(`/api/rooms/${currentRoomCode}/state`, {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    roomStatusP.textContent = data.error || "Error loading room state.";
+                    roomStatusP.style.color = "red";
+                    return;
+                }
+
+                const room = data.room;
+                roomStatusP.style.color = "black";
+                roomStatusP.textContent = `Room ${room.room_code} — Status: ${room.status}`;
+
+                scoreLineP.textContent =
+                    `Scores — ${room.player1_username || "Player 1"}: ${room.player1_score} `
+                    + `| ${room.player2_username || "Player 2"}: ${room.player2_score}`
+                    + (room.winner_username ? ` | Winner: ${room.winner_username}` : "");
+
+                if (room.status === "finished" && room.winner_username) {
+                    showMessage(`Game Over! Winner: ${room.winner_username}`, false);
+                }
+
+                // If finished, stop polling
+                if (room.status === "finished" && roomPollInterval) {
+                    clearInterval(roomPollInterval);
+                    roomPollInterval = null;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function startRoomPolling() {
+            if (roomPollInterval) clearInterval(roomPollInterval);
+            roomPollInterval = setInterval(fetchRoomState, 2000);
+            fetchRoomState(); // also do an immediate fetch
+        }
+
+        // ========== ROOM CREATE / JOIN ==========
+        document.getElementById("create-room-btn").addEventListener("click", async () => {
+            try {
+                const res = await fetch("/api/rooms", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    roomStatusP.textContent = data.error || "Error creating room.";
+                    roomStatusP.style.color = "red";
+                    return;
+                }
+
+                currentRoomCode = data.room.room_code;
+                roomStatusP.style.color = "green";
+                roomStatusP.textContent = "Room created! Code: " + currentRoomCode + " — Waiting for opponent...";
+                startRoomPolling();
+            } catch (err) {
+                console.error(err);
+                roomStatusP.textContent = "Network error creating room.";
+                roomStatusP.style.color = "red";
+            }
+        });
+
+        document.getElementById("join-room-btn").addEventListener("click", async () => {
+            const code = joinInput.value.trim().toUpperCase();
+
+            if (!code) {
+                roomStatusP.textContent = "Enter a room code!";
+                roomStatusP.style.color = "red";
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/rooms/join", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ room_code: code })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    roomStatusP.textContent = data.error || "Error joining room.";
+                    roomStatusP.style.color = "red";
+                    return;
+                }
+
+                currentRoomCode = code;
+                roomStatusP.style.color = "green";
+                roomStatusP.textContent = "Successfully joined! Room: " + code;
+                resetMatchUI();
+                startRoomPolling();
+            } catch (err) {
+                console.error(err);
+                roomStatusP.textContent = "Network error joining room.";
+                roomStatusP.style.color = "red";
+            }
+        });
+
+        // ========== PLAY CARD ==========
+        async function playSelectedCard() {
+            if (selectedCardId === null) {
                 showMessage("Please select a card to play.", true);
                 return;
             }
 
-            if (selectedCardId < 0 || selectedCardId >= hand.length) {
-                showMessage("Invalid card selection.", true);
+            if (!currentRoomCode) {
+                showMessage("Create or join a room before playing!", true);
                 return;
             }
 
             const played = hand[selectedCardId];
 
-            // Log the played card
-            logPlayedCard(played);
-            showMessage(`You played ${played.name}!`, false);
-
-            // Remove it from hand
-            hand.splice(selectedCardId, 1);
-
-            // Draw a new one from drawPile if available
-            if (drawPile.length > 0) {
-                const newCard = drawPile.shift();
-                hand.push(newCard);
-            }
-
-            // Reset selection
-            selectedCardId = null;
-            renderHand();
-        }
-
-        async function loadDeck() {
-            const token = localStorage.getItem("token");
-            if (!token) {
-                window.location.href = "/login";
-                return;
-            }
-
             try {
-                const resp = await fetch("/api/decks/active", {
+                const resp = await fetch(`/api/rooms/${currentRoomCode}/play`, {
+                    method: "POST",
                     headers: {
                         "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
                     },
+                    body: JSON.stringify({ card_id: played.card_id })
                 });
 
+                const data = await resp.json();
+
                 if (!resp.ok) {
-                    const data = await resp.json().catch(() => ({}));
-                    showMessage(data.error || "Failed to load active deck", true);
+                    // DO NOT update hand on error
+                    showMessage(data.error || "Error playing card.", true);
                     return;
                 }
 
+                // Server accepted the move → now update UI
+                logPlayedCard(played);
+                showMessage(`You played ${played.name}!`, false);
+
+                // Remove the card from hand and draw a new one
+                hand.splice(selectedCardId, 1);
+                if (drawPile.length > 0) {
+                    hand.push(drawPile.shift());
+                }
+                selectedCardId = null;
+                renderHand();
+
+                // Update room state (scores, status) based on server
+                fetchRoomState();
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error while playing card.", true);
+            }
+        }
+
+        // Load active deck
+        async function loadDeck() {
+            try {
+                const resp = await fetch("/api/decks/active", {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+
                 const data = await resp.json();
-                if (!data.deck || !data.deck.cards || !data.deck.cards.length) {
-                    showMessage("You don't have an active deck yet. Build one first!", true);
+
+                if (!resp.ok || !data.deck || !data.deck.cards || !data.deck.cards.length) {
+                    showMessage("You don't have an active deck. Build one first!", true);
                     return;
                 }
 
@@ -290,7 +463,7 @@
                 initHand();
             } catch (err) {
                 console.error(err);
-                showMessage("Network error while loading deck", true);
+                showMessage("Failed to load deck.", true);
             }
         }
 

@@ -111,8 +111,10 @@
                     return;
                 }
 
-                // Save the token for later API calls
+                // Save token + username for later API calls
                 localStorage.setItem("token", data.token);
+                localStorage.setItem("username", data.user.username);
+
                 messageDiv.classList.remove("error");
                 messageDiv.textContent = "Registered successfully! Redirecting to home...";
 

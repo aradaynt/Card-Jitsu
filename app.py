@@ -535,11 +535,12 @@ def create_app():
                 "room": {
                     "room_code": room.room_code,
                     "status": room.status,
-                    "player1_id": room.player1_id,
-                    "player2_id": room.player2_id,
                     "player1_score": room.player1_score,
                     "player2_score": room.player2_score,
                     "winner_id": room.winner_id,
+                    "player1_username": room.player1.username if room.player1 else None,
+                    "player2_username": room.player2.username if room.player2 else None,
+                    "winner_username": room.winner.username if room.winner_id else None
                 },
                 "moves": moves_payload,
             }

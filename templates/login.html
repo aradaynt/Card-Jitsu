@@ -111,8 +111,10 @@
                     return;
                 }
 
-                // Save token
+                // Save token + username
                 localStorage.setItem("token", data.token);
+                localStorage.setItem("username", data.user.username);
+
                 messageDiv.classList.remove("error");
                 messageDiv.textContent = "Logged in! Redirecting to home...";
 

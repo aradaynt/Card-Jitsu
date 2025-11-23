@@ -19,6 +19,28 @@
         function goToRoom() {
             window.location.href = "/room";
         }
+        function updateUserInfo() {
+            const userInfoDiv = document.getElementById("user-info");
+            const logoutBtn = document.getElementById("logoutbutton");
+
+            const username = localStorage.getItem("username");
+            const token = localStorage.getItem("token");
+
+            if (token && username) {
+                userInfoDiv.textContent = "Logged in as: " + username;
+                logoutBtn.style.display = "inline-block";
+            } else {
+                userInfoDiv.textContent = "You are not logged in.";
+                logoutBtn.style.display = "none";
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            window.location.href = "/login";
+        }
+
 
         async function checkDeck() {
             const token = localStorage.getItem("token");
@@ -60,6 +82,7 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             checkDeck();
+            updateUserInfo();
         });
     </script>
     <style>
@@ -99,8 +122,17 @@
 </head>
 
 <body>
+    <!-- User info + logout -->
+    <div id="user-bar">
+        <span id="user-info"></span>
+        <button id="logoutbutton" class="secondary" style="display:none;" onclick="logout()">
+            Logout
+        </button>
+    </div>
+
     <h1>Welcome to Card-Jitsu!</h1>
     <p>Your journey to becoming a Card-Jitsu master begins here. Choose your path and start training today!</p>
+
 
     <button id="rulesbutton" onclick="goToRulesPage()">Game Info and Rules</button>
 
@@ -112,14 +144,9 @@
         My Deck
     </button>
 
-    <button id="joinroombutton" class="secondary" onclick="goToRoom()">Test Room</button>
+    <button id="joinroombutton" class="secondary" onclick="goToRoom()">Rooms</button>
 
     <br>
-    <form>
-        <label>Room Code</label>
-        <input type="text" name="roomcode" />
-        <button type="submit" onclick="goToRoom()">Join Game</button>
-    </form>
 </body>
 
 </html>

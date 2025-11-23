@@ -118,6 +118,7 @@ class Room(db.Model):
     player2_score = db.Column(db.Integer, default=0, nullable=False)
 
     winner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    winner = db.relationship("User", foreign_keys=[winner_id])
 
     player1 = db.relationship("User", back_populates="rooms_as_p1", foreign_keys=[player1_id])
     player2 = db.relationship("User", back_populates="rooms_as_p2", foreign_keys=[player2_id])
