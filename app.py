@@ -13,27 +13,26 @@ from cardjitsu.models import (
     UserCard,
     Deck,
     DeckCard,
+    Room,
+    Move,
 )
 
-
 def create_app():
-    app = Flask(__name__)
 
-    # --- basic config ---
+    app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cardjitsu.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # CHANGE THIS BEFORE DEPLOYING ANYWHERE REAL
+    # WE NEED TO MAKE SURE WE CHANGE THIS BEFORE DEPLOYING ANYWHERE REAL!!!
     app.config["SECRET_KEY"] = "dev-secret-change-me"
 
-    # --- init DB + seed cards ---
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
         seed_cards()  # fills the Card table once if empty
 
-    # ---------- helper functions ----------
+    # ---------- helper functions for auth----------
 
     def create_token(user_id: int) -> str:
         """Create a JWT that expires in 24 hours."""
@@ -79,6 +78,71 @@ def create_app():
             return fn(*args, **kwargs)
 
         return wrapper
+    # ---------- Helper functions for rooms ----------
+    def generate_room_code(length: int = 6) -> str:
+        """Generate a unique room code."""
+        chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        while True:
+            code = "".join(random.choice(chars) for _ in range(length))
+            if not Room.query.filter_by(room_code=code).first():
+                return code
+
+    def compare_cards(card1: Card, card2: Card) -> int:
+        """
+        Return:
+          0 -> draw
+          1 -> card1 wins
+          2 -> card2 wins
+        Using fire/grass/water RPS + power tie-breaker.
+        """
+        if not card1 or not card2:
+            return 0
+
+        if card1.element == card2.element:
+            if card1.power == card2.power:
+                return 0
+            return 1 if card1.power > card2.power else 2
+
+        beats = {
+            "fire": "grass",
+            "grass": "water",
+            "water": "fire",
+        }
+
+        if beats.get(card1.element) == card2.element:
+            return 1
+        if beats.get(card2.element) == card1.element:
+            return 2
+        return 0
+
+    def resolve_move(move: Move, room: Room) -> None:
+        """Resolve a move once both players have chosen a card."""
+        c1 = Card.query.get(move.player1_card_id)
+        c2 = Card.query.get(move.player2_card_id)
+
+        result = compare_cards(c1, c2)
+
+        winner_user_id = None
+        if result == 1:
+            winner_user_id = room.player1_id
+            room.player1_score += 1
+        elif result == 2:
+            winner_user_id = room.player2_id
+            room.player2_score += 1
+
+        move.winner_user_id = winner_user_id
+        move.resolved = True
+
+        # ez win rule for now: first to 3 points
+        if winner_user_id is not None and (
+            room.player1_score >= 3 or room.player2_score >= 3
+        ):
+            room.status = "finished"
+            room.winner_id = winner_user_id
+            room.ended_at = datetime.utcnow()
+
+        db.session.commit()
+
 
     # ---------- routes ----------
 
@@ -96,11 +160,11 @@ def create_app():
         if not username or not password:
             return jsonify({"error": "username and password required"}), 400
 
-        # ensure unique username
+        # ensures unique username
         if User.query.filter_by(username=username).first():
             return jsonify({"error": "username already taken"}), 400
 
-        # create user
+        # creates user
         user = User(username=username)
         user.set_password(password)
         db.session.add(user)
@@ -216,17 +280,17 @@ def create_app():
         if len(rows) != 10:
             return jsonify({"error": "One or more cards do not belong to this user"}), 400
 
-        # deactivate existing decks
+        # deactivates the existing decks
         Deck.query.filter_by(user_id=user.id, is_active=True).update(
             {"is_active": False}
         )
 
-        # create new deck
+        # creates a new deck
         deck = Deck(user_id=user.id, name=name, is_active=True)
         db.session.add(deck)
-        db.session.flush()  # get deck.id before adding DeckCard rows
+        db.session.flush()  # gets deck.id before adding DeckCard rows
 
-        # create DeckCard rows using the underlying Card ids
+        # creates DeckCard rows using the underlying Card ids
         for uc in rows:
             db.session.add(DeckCard(deck_id=deck.id, card_id=uc.card_id))
 
@@ -261,7 +325,7 @@ def create_app():
         if not deck:
             return jsonify({"deck": None}), 200
 
-        # join DeckCard -> Card
+        # joins DeckCard -> Card
         rows = (
             db.session.query(DeckCard, Card)
             .join(Card, DeckCard.card_id == Card.id)
@@ -320,6 +384,238 @@ def create_app():
     def room_page():
         # prototype single-player room using active deck
         return render_template("room.html")
+    
+        # ---------- ROOM + MATCH ENDPOINTS ----------
+
+    # POST /api/rooms  -> create a room as player1
+    @app.post("/api/rooms")
+    @auth_required
+    def create_room():
+        user = g.current_user
+
+        # must have an active deck to play
+        active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
+        if not active_deck:
+            return jsonify({"error": "You must have an active deck to create a room"}), 400
+
+        room_code = generate_room_code()
+
+        room = Room(
+            room_code=room_code,
+            player1_id=user.id,
+            status="waiting",
+            player1_score=0,
+            player2_score=0,
+        )
+        db.session.add(room)
+        db.session.commit()
+
+        return jsonify(
+            {
+                "message": "room created",
+                "room": {
+                    "id": room.id,
+                    "room_code": room.room_code,
+                    "status": room.status,
+                },
+            }
+        ), 201
+        # POST /api/rooms/join  { "room_code": "ABC123" }
+    @app.post("/api/rooms/join")
+    @auth_required
+    def join_room():
+        user = g.current_user
+        data = request.get_json() or {}
+        room_code = (data.get("room_code") or "").strip().upper()
+
+        if not room_code:
+            return jsonify({"error": "room_code required"}), 400
+
+        room = Room.query.filter_by(room_code=room_code).first()
+        if not room:
+            return jsonify({"error": "Room not found"}), 404
+
+        if room.status != "waiting":
+            return jsonify({"error": "Room is not joinable"}), 400
+
+        if room.player1_id == user.id:
+            return jsonify({"error": "You are already player 1 in this room"}), 400
+
+        # must have an active deck to join
+        active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
+        if not active_deck:
+            return jsonify({"error": "You must have an active deck to join a room"}), 400
+
+        room.player2_id = user.id
+        room.status = "active"
+        room.started_at = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify(
+            {
+                "message": "joined room",
+                "room": {
+                    "room_code": room.room_code,
+                    "status": room.status,
+                    "player1_id": room.player1_id,
+                    "player2_id": room.player2_id,
+                },
+            }
+        )
+        # GET /api/rooms/<room_code>/state
+    @app.get("/api/rooms/<room_code>/state")
+    @auth_required
+    def room_state(room_code):
+        user = g.current_user
+        room = Room.query.filter_by(room_code=room_code.upper()).first()
+        if not room:
+            return jsonify({"error": "Room not found"}), 404
+
+        if user.id not in (room.player1_id, room.player2_id):
+            return jsonify({"error": "You are not part of this room"}), 403
+
+        # fetch last few moves (optional)
+        moves = (
+            Move.query.filter_by(room_id=room.id)
+            .order_by(Move.round_number.asc())
+            .all()
+        )
+
+        moves_payload = [
+            {
+                "round_number": m.round_number,
+                "resolved": m.resolved,
+                "winner_user_id": m.winner_user_id,
+            }
+            for m in moves
+        ]
+
+        return jsonify(
+            {
+                "room": {
+                    "room_code": room.room_code,
+                    "status": room.status,
+                    "player1_id": room.player1_id,
+                    "player2_id": room.player2_id,
+                    "player1_score": room.player1_score,
+                    "player2_score": room.player2_score,
+                    "winner_id": room.winner_id,
+                },
+                "moves": moves_payload,
+            }
+        )
+        # POST /api/rooms/<room_code>/play  { "card_id": 17 }
+    @app.post("/api/rooms/<room_code>/play")
+    @auth_required
+    def play_card(room_code):
+        user = g.current_user
+        data = request.get_json() or {}
+        card_id = data.get("card_id")
+
+        if not isinstance(card_id, int):
+            return jsonify({"error": "card_id must be an integer"}), 400
+
+        room = Room.query.filter_by(room_code=room_code.upper()).first()
+        if not room:
+            return jsonify({"error": "Room not found"}), 404
+
+        if room.status != "active":
+            return jsonify({"error": f"Room is not active (status={room.status})"}), 400
+
+        if user.id not in (room.player1_id, room.player2_id):
+            return jsonify({"error": "You are not part of this room"}), 403
+
+        # verify card is in user's active deck
+        active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
+        if not active_deck:
+            return jsonify({"error": "You must have an active deck to play"}), 400
+
+        in_deck = (
+            db.session.query(DeckCard)
+            .join(Deck, DeckCard.deck_id == Deck.id)
+            .filter(
+                Deck.id == active_deck.id,
+                DeckCard.card_id == card_id,
+            )
+            .first()
+        )
+
+        if not in_deck:
+            return jsonify({"error": "This card is not in your active deck"}), 400
+
+        # find current unresolved move (if any)
+        current_move = (
+            Move.query.filter_by(room_id=room.id, resolved=False)
+            .order_by(Move.round_number.desc())
+            .first()
+        )
+
+        # find last round number
+        last_round = (
+            Move.query.filter_by(room_id=room.id)
+            .order_by(Move.round_number.desc())
+            .first()
+        )
+        last_round_number = last_round.round_number if last_round else 0
+
+        is_player1 = user.id == room.player1_id
+
+        if not current_move:
+            # start a new round
+            round_number = last_round_number + 1
+            current_move = Move(
+                room_id=room.id,
+                round_number=round_number,
+            )
+            if is_player1:
+                current_move.player1_card_id = card_id
+            else:
+                current_move.player2_card_id = card_id
+            db.session.add(current_move)
+            db.session.commit()
+        else:
+            # player is completing the existing round
+            if is_player1:
+                if current_move.player1_card_id is not None:
+                    return jsonify({"error": "You already played this round"}), 400
+                current_move.player1_card_id = card_id
+            else:
+                if current_move.player2_card_id is not None:
+                    return jsonify({"error": "You already played this round"}), 400
+                current_move.player2_card_id = card_id
+            db.session.commit()
+
+        # if both players have chosen, resolve this round
+        if (
+            current_move.player1_card_id is not None
+            and current_move.player2_card_id is not None
+            and not current_move.resolved
+        ):
+            resolve_move(current_move, room)
+
+        # reload room + move to reflect any score/ status updates
+        db.session.refresh(room)
+        db.session.refresh(current_move)
+
+        return jsonify(
+            {
+                "message": "move recorded",
+                "room_status": room.status,
+                "round": {
+                    "round_number": current_move.round_number,
+                    "resolved": current_move.resolved,
+                    "winner_user_id": current_move.winner_user_id,
+                },
+                "scores": {
+                    "player1_score": room.player1_score,
+                    "player2_score": room.player2_score,
+                    "winner_id": room.winner_id,
+                },
+            }
+        )
+
+
 
     return app
 

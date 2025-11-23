@@ -134,8 +134,8 @@ class Move(db.Model):
     room_id = db.Column(db.Integer, db.ForeignKey("rooms.id"), nullable=False)
     round_number = db.Column(db.Integer, nullable=False)
 
-    player1_card_id = db.Column(db.Integer, db.ForeignKey("cards.id"), nullable=False)
-    player2_card_id = db.Column(db.Integer, db.ForeignKey("cards.id"), nullable=False)
+    player1_card_id = db.Column(db.Integer, db.ForeignKey("cards.id"), nullable=True)
+    player2_card_id = db.Column(db.Integer, db.ForeignKey("cards.id"), nullable=True)
 
     resolved = db.Column(db.Boolean, default=False, nullable=False)
     winner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
