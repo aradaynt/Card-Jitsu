@@ -17,22 +17,70 @@ from cardjitsu.models import (
     Move,
 )
 
-def create_app():
+# ---------------- DEMO USER SEEDING (OUTSIDE create_app) ---------------- #
 
+
+def _create_demo_user(username: str, password: str) -> None:
+    """Create one demo user with 15 cards and an active 10-card deck."""
+    if User.query.filter_by(username=username).first():
+        return  # already exists
+
+    # create user
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    # give them 15 random cards
+    all_cards = Card.query.all()
+    if len(all_cards) < 15:
+        raise RuntimeError("Card pool not seeded correctly")
+
+    chosen_cards = random.sample(all_cards, 15)
+
+    for c in chosen_cards:
+        db.session.add(UserCard(user_id=user.id, card_id=c.id))
+    db.session.commit()
+
+    # make an active deck from the first 10 cards
+    deck = Deck(user_id=user.id, name=f"{username}'s Deck", is_active=True)
+    db.session.add(deck)
+    db.session.flush()  # get deck.id
+
+    for c in chosen_cards[:10]:
+        db.session.add(DeckCard(deck_id=deck.id, card_id=c.id))
+
+    db.session.commit()
+
+
+def seed_demo_users() -> None:
+    """Create base demo logins + decks if DB has no users."""
+    if User.query.count() > 0:
+        return  # already have real users, do nothing
+
+    _create_demo_user("player1", "test123")
+    _create_demo_user("player2", "test123")
+
+
+# ---------------- APP FACTORY ---------------- #
+
+
+def create_app():
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cardjitsu.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # WE NEED TO MAKE SURE WE CHANGE THIS BEFORE DEPLOYING ANYWHERE REAL!!!
+    # WE NEED TO CHANGE THIS BEFORE REAL DEPLOY
     app.config["SECRET_KEY"] = "dev-secret-change-me"
 
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
-        seed_cards()  # fills the Card table once if empty
+        seed_cards()       # fill Card table once if empty
+        seed_demo_users()  # create player1 / player2 demo accounts
 
-    # ---------- helper functions for auth----------
+    # ---------- helper functions for auth ---------- #
 
     def create_token(user_id: int) -> str:
         """Create a JWT that expires in 24 hours."""
@@ -49,6 +97,7 @@ def create_app():
 
     def auth_required(fn):
         """Decorator to protect routes with JWT auth."""
+
         @wraps(fn)
         def wrapper(*args, **kwargs):
             auth_header = request.headers.get("Authorization", "")
@@ -78,7 +127,9 @@ def create_app():
             return fn(*args, **kwargs)
 
         return wrapper
-    # ---------- Helper functions for rooms ----------
+
+    # ---------- helper functions for rooms ---------- #
+
     def generate_room_code(length: int = 6) -> str:
         """Generate a unique room code."""
         chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -143,14 +194,14 @@ def create_app():
 
         db.session.commit()
 
-
-    # ---------- routes ----------
+    # ---------------- ROUTES ---------------- #
 
     @app.route("/")
     def index():
         return render_template("login.html")
 
-    # POST /api/register  { "username": "...", "password": "..." }
+    # ---- Auth API ---- #
+
     @app.post("/api/register")
     def register():
         data = request.get_json() or {}
@@ -160,17 +211,14 @@ def create_app():
         if not username or not password:
             return jsonify({"error": "username and password required"}), 400
 
-        # ensures unique username
         if User.query.filter_by(username=username).first():
             return jsonify({"error": "username already taken"}), 400
 
-        # creates user
         user = User(username=username)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
 
-        # give them 15 random cards from the global pool
         all_cards = Card.query.all()
         if len(all_cards) < 15:
             return jsonify({"error": "Card pool not seeded correctly"}), 500
@@ -193,7 +241,6 @@ def create_app():
             201,
         )
 
-    # POST /api/login  { "username": "...", "password": "..." }
     @app.post("/api/login")
     def login():
         data = request.get_json() or {}
@@ -217,13 +264,13 @@ def create_app():
             }
         )
 
-    # GET /api/user/cards
+    # ---- User cards ---- #
+
     @app.get("/api/user/cards")
     @auth_required
     def get_user_cards():
         user = g.current_user
 
-        # join UserCard -> Card so you can see full card info
         rows = (
             db.session.query(UserCard, Card)
             .join(Card, UserCard.card_id == Card.id)
@@ -244,10 +291,9 @@ def create_app():
         ]
 
         return jsonify({"cards": cards_payload})
-        # ---------- DECK ENDPOINTS ----------
 
-    # POST /api/decks
-    # Body: { "name": "My Deck", "user_card_ids": [1,2,...,10] }
+    # ---- Deck endpoints ---- #
+
     @app.post("/api/decks")
     @auth_required
     def create_or_replace_deck():
@@ -257,7 +303,6 @@ def create_app():
         name = (data.get("name") or "Main Deck").strip()
         user_card_ids = data.get("user_card_ids") or []
 
-        # must have exactly 10 cards
         if not isinstance(user_card_ids, list) or len(user_card_ids) != 10:
             return (
                 jsonify(
@@ -269,7 +314,6 @@ def create_app():
                 400,
             )
 
-        # load the UserCard rows for this user and these ids
         rows = (
             UserCard.query.filter(
                 UserCard.user_id == user.id,
@@ -280,17 +324,14 @@ def create_app():
         if len(rows) != 10:
             return jsonify({"error": "One or more cards do not belong to this user"}), 400
 
-        # deactivates the existing decks
         Deck.query.filter_by(user_id=user.id, is_active=True).update(
             {"is_active": False}
         )
 
-        # creates a new deck
         deck = Deck(user_id=user.id, name=name, is_active=True)
         db.session.add(deck)
-        db.session.flush()  # gets deck.id before adding DeckCard rows
+        db.session.flush()
 
-        # creates DeckCard rows using the underlying Card ids
         for uc in rows:
             db.session.add(DeckCard(deck_id=deck.id, card_id=uc.card_id))
 
@@ -310,7 +351,6 @@ def create_app():
             201,
         )
 
-    # GET /api/decks/active
     @app.get("/api/decks/active")
     @auth_required
     def get_active_deck():
@@ -325,7 +365,6 @@ def create_app():
         if not deck:
             return jsonify({"deck": None}), 200
 
-        # joins DeckCard -> Card
         rows = (
             db.session.query(DeckCard, Card)
             .join(Card, DeckCard.card_id == Card.id)
@@ -355,7 +394,9 @@ def create_app():
                 }
             }
         )
-    
+
+    # ---- Page routes (templates) ---- #
+
     @app.get("/home")
     def home_page():
         return render_template("home.html")
@@ -375,25 +416,22 @@ def create_app():
     @app.get("/login")
     def login_page():
         return render_template("login.html")
-    
+
     @app.get("/mydeck")
     def mydeck_page():
         return render_template("mydeck.html")
-    
+
     @app.get("/room")
     def room_page():
-        # prototype single-player room using active deck
         return render_template("room.html")
-    
-        # ---------- ROOM + MATCH ENDPOINTS ----------
 
-    # POST /api/rooms  -> create a room as player1
+    # ---- Room + match endpoints ---- #
+
     @app.post("/api/rooms")
     @auth_required
     def create_room():
         user = g.current_user
 
-        # must have an active deck to play
         active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
         if not active_deck:
             return jsonify({"error": "You must have an active deck to create a room"}), 400
@@ -410,17 +448,20 @@ def create_app():
         db.session.add(room)
         db.session.commit()
 
-        return jsonify(
-            {
-                "message": "room created",
-                "room": {
-                    "id": room.id,
-                    "room_code": room.room_code,
-                    "status": room.status,
-                },
-            }
-        ), 201
-        # POST /api/rooms/join  { "room_code": "ABC123" }
+        return (
+            jsonify(
+                {
+                    "message": "room created",
+                    "room": {
+                        "id": room.id,
+                        "room_code": room.room_code,
+                        "status": room.status,
+                    },
+                }
+            ),
+            201,
+        )
+
     @app.post("/api/rooms/join")
     @auth_required
     def join_room():
@@ -441,7 +482,6 @@ def create_app():
         if room.player1_id == user.id:
             return jsonify({"error": "You are already player 1 in this room"}), 400
 
-        # must have an active deck to join
         active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
         if not active_deck:
             return jsonify({"error": "You must have an active deck to join a room"}), 400
@@ -463,7 +503,7 @@ def create_app():
                 },
             }
         )
-        # GET /api/rooms/<room_code>/state
+
     @app.get("/api/rooms/<room_code>/state")
     @auth_required
     def room_state(room_code):
@@ -475,7 +515,6 @@ def create_app():
         if user.id not in (room.player1_id, room.player2_id):
             return jsonify({"error": "You are not part of this room"}), 403
 
-        # fetch last few moves (optional)
         moves = (
             Move.query.filter_by(room_id=room.id)
             .order_by(Move.round_number.asc())
@@ -505,7 +544,7 @@ def create_app():
                 "moves": moves_payload,
             }
         )
-        # POST /api/rooms/<room_code>/play  { "card_id": 17 }
+
     @app.post("/api/rooms/<room_code>/play")
     @auth_required
     def play_card(room_code):
@@ -526,7 +565,6 @@ def create_app():
         if user.id not in (room.player1_id, room.player2_id):
             return jsonify({"error": "You are not part of this room"}), 403
 
-        # verify card is in user's active deck
         active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
         if not active_deck:
             return jsonify({"error": "You must have an active deck to play"}), 400
@@ -544,14 +582,12 @@ def create_app():
         if not in_deck:
             return jsonify({"error": "This card is not in your active deck"}), 400
 
-        # find current unresolved move (if any)
         current_move = (
             Move.query.filter_by(room_id=room.id, resolved=False)
             .order_by(Move.round_number.desc())
             .first()
         )
 
-        # find last round number
         last_round = (
             Move.query.filter_by(room_id=room.id)
             .order_by(Move.round_number.desc())
@@ -562,7 +598,6 @@ def create_app():
         is_player1 = user.id == room.player1_id
 
         if not current_move:
-            # start a new round
             round_number = last_round_number + 1
             current_move = Move(
                 room_id=room.id,
@@ -575,7 +610,6 @@ def create_app():
             db.session.add(current_move)
             db.session.commit()
         else:
-            # player is completing the existing round
             if is_player1:
                 if current_move.player1_card_id is not None:
                     return jsonify({"error": "You already played this round"}), 400
@@ -586,7 +620,6 @@ def create_app():
                 current_move.player2_card_id = card_id
             db.session.commit()
 
-        # if both players have chosen, resolve this round
         if (
             current_move.player1_card_id is not None
             and current_move.player2_card_id is not None
@@ -594,7 +627,6 @@ def create_app():
         ):
             resolve_move(current_move, room)
 
-        # reload room + move to reflect any score/ status updates
         db.session.refresh(room)
         db.session.refresh(current_move)
 
@@ -615,10 +647,7 @@ def create_app():
             }
         )
 
-
-
     return app
-
 
 if __name__ == "__main__":
     app = create_app()
