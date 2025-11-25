@@ -6,99 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Deck Building - Card-Jitsu</title>
     <link rel="stylesheet" href="/static/css/style.css">
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f0f8ff;
-        }
-
-        h1 {
-            color: #333366;
-        }
-
-        button {
-            margin: 5px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .secondary {
-            background-color: #777;
-        }
-
-        .secondary:hover {
-            background-color: #666;
-        }
-
-        #card-selection {
-            margin-top: 20px;
-        }
-
-        .card-row {
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #ffffff;
-        }
-
-        .card-info {
-            font-size: 14px;
-        }
-
-        #status-message {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .error {
-            color: red;
-        }
-
-        .success {
-            color: green;
-        }
-
-        #selected-count {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-    </style>
+    <script src="/static/js/common.js" defer></script>
 </head>
 
 <body>
-    <h1>Deck Building</h1>
-    <p>Select exactly 10 cards from your collection to build your deck.</p>
+    <div id="navbar-placeholder"></div>
 
-    <div id="selected-count">Selected: 0 / 10</div>
-    <div id="status-message"></div>
+    <div class="container">
+        <h1>Deck Building</h1>
+        <p>Select exactly 10 cards from your collection to build your deck.</p>
 
-    <div id="card-selection">
-        <!-- Cards will be injected here -->
+        <div id="selected-count">Selected: 0 / 10</div>
+        <div id="status-message" class="message"></div>
+
+        <div id="card-selection"></div>
+
+        <button id="finalize-deck">Finalize Deck</button>
+
+        <div class="footer">
+            Tip: Try balancing elements and colours for more win conditions.
+        </div>
     </div>
 
-    <button id="finalize-deck">Finalize Deck</button>
-    <button class="homebutton secondary" onclick="goHome()">Home</button>
-
     <script>
-        function goHome() {
-            window.location.href = "/home";
-        }
-
         const selectedUserCardIds = new Set();
         let cardsData = [];
 
@@ -126,7 +56,7 @@
                 selectedUserCardIds.add(userCardId);
                 showMessage("");
             }
-            renderCards(); // re-render buttons
+            renderCards();
             updateSelectedCount();
         }
 
@@ -145,7 +75,6 @@
 
                 const info = document.createElement("div");
                 info.className = "card-info";
-                // Example: "Fire 7 (Red) - Fire 7 Red Card Name"
                 info.textContent = `${card.element.toUpperCase()} ${card.power} (${card.colour}) - ${card.name}`;
 
                 const btn = document.createElement("button");
@@ -163,7 +92,6 @@
         async function loadUserCards() {
             const token = localStorage.getItem("token");
             if (!token) {
-                // Not logged in → send them to login
                 window.location.href = "/login";
                 return;
             }

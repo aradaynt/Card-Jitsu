@@ -6,81 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Login - Card-Jitsu</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f0f8ff;
-        }
-
-        h1 {
-            color: #333366;
-        }
-
-        form {
-            max-width: 300px;
-        }
-
-        label {
-            display: block;
-            margin-top: 10px;
-        }
-
-        input {
-            width: 100%;
-            padding: 8px;
-            margin-top: 4px;
-            box-sizing: border-box;
-        }
-
-        button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .message {
-            margin-top: 10px;
-            color: #333;
-        }
-
-        .error {
-            color: red;
-        }
-
-        .link {
-            margin-top: 10px;
-        }
-    </style>
+    <script src="/static/js/common.js" defer></script>
 </head>
 
-<body>
-    <h1>Login</h1>
+<body class="auth-wrapper">
+    <div id="navbar-placeholder"></div>
 
-    <form id="login-form">
-        <label for="username">Username</label>
-        <input id="username" name="username" required />
+    <div class="auth-card">
+        <h1>Login</h1>
 
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" required />
+        <form id="login-form">
+            <label for="username">Username</label>
+            <input id="username" name="username" required />
 
-        <button type="submit">Login</button>
-    </form>
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" required />
 
-    <div id="message" class="message"></div>
+            <button type="submit">Login</button>
+        </form>
 
-    <div class="link">
-        Don’t have an account?
-        <a href="/register">Register</a>
+        <div id="message" class="message"></div>
+
+        <div class="link">
+            Don’t have an account?
+            <a href="/register">Register</a>
+        </div>
     </div>
 
     <script>
@@ -90,6 +40,7 @@
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
             messageDiv.textContent = "";
+            messageDiv.classList.remove("error");
 
             const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value.trim();
@@ -111,11 +62,11 @@
                     return;
                 }
 
-                // Save token + username
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("username", data.user.username);
 
                 messageDiv.classList.remove("error");
+                messageDiv.classList.add("success");
                 messageDiv.textContent = "Logged in! Redirecting to home...";
 
                 setTimeout(() => {

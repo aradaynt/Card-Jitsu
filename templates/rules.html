@@ -6,68 +6,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Card-Jitsu Rules</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <script>
-        function goHome() {
-            window.location.href = "/home";
-        }
-    </script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f0f8ff;
-        }
-
-        h1 {
-            color: #333366;
-        }
-
-        button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-    </style>
+    <script src="/static/js/common.js" defer></script>
 </head>
 
 <body>
-    <h1>What is Card-Jitsu?</h1>
-    <p>Card-Jitsu is a simple but strategic card game from Club Penguin.<br>Players battle using cards based on three elements</p>
-    <ul>
-        <li>Fire
-        <li>Grass
-        <li>Snow
-    </ul>
-    Each card also has a power number (1-12), and a color
+    <div id="navbar-placeholder"></div>
 
-    <h3>Rules Summary</h3>
-    <ol>
-        <li>Elements follow rock-paper-scissors logic
+    <div class="container">
+        <div class="rules-card">
+            <h1>What is Card-Jitsu?</h1>
+            <p>
+                Card-Jitsu is a simple but strategic card game inspired by Club Penguin.<br>
+                Players battle using cards based on three elements:
+            </p>
             <ul>
-                <li>Fire beats Snow
-                <li>Snow beats Grass
-                <li>Grass beats Fire
+                <li>Fire</li>
+                <li>Grass</li>
+                <li>Snow</li>
             </ul>
-        <li>If both cards are the same element, the higher power number wins
-        <li>Players reveal cards simultaneously
-        <li>Games proceed through multiple rounds
-        <li>A match ends when one player gets either
-            <ul>
-                <li>A player wins a round with each type of element
-                <li>A player wins 3 rounds with different colors of the same element
-            </ul>
-    </ol>
+            <p>Each card also has a power number (1–12) and a colour.</p>
 
-    <button class="homebutton" onclick=goHome()>Home</button>
+            <h3>Rules Summary</h3>
+            <ol>
+                <li>
+                    Elements follow rock-paper-scissors logic:
+                    <ul>
+                        <li>Fire beats Snow</li>
+                        <li>Snow beats Grass</li>
+                        <li>Grass beats Fire</li>
+                    </ul>
+                </li>
+                <li>If both cards are the same element, the higher power number wins.</li>
+                <li>Players reveal cards simultaneously.</li>
+                <li>Games proceed through multiple rounds.</li>
+                <li>
+                    A match ends when one player achieves:
+                    <ul>
+                        <li>One round win with each element (Fire, Grass, Snow), or</li>
+                        <li>Three round wins using different colours of the same element.</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <button onclick="window.location.href='/home'">Back to Home</button>
+        </div>
+
+        <div class="footer">
+            Master the elements. Master Card-Jitsu.
+        </div>
+    </div>
 </body>
 
 </html>

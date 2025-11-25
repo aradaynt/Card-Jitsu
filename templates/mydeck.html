@@ -6,101 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>My Deck - Card-Jitsu</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f0f8ff;
-        }
-
-        h1 {
-            color: #333366;
-        }
-
-        button {
-            margin: 10px 5px 0 0;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .secondary {
-            background-color: #777;
-        }
-
-        .secondary:hover {
-            background-color: #666;
-        }
-
-        #deck-container {
-            margin-top: 20px;
-        }
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
-        }
-
-        .card-tile {
-            background-color: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .card-meta {
-            font-size: 14px;
-        }
-
-        #status-message {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .error {
-            color: red;
-        }
-    </style>
+    <script src="/static/js/common.js" defer></script>
 </head>
 
 <body>
-    <h1>My Deck</h1>
-    <p>Here is your currently active deck.</p>
+    <div id="navbar-placeholder"></div>
 
-    <div id="status-message"></div>
+    <div class="container">
+        <h1>My Deck</h1>
+        <p>Here is your currently active deck.</p>
 
-    <div id="deck-container">
-        <!-- Deck details go here -->
+        <div id="status-message" class="message"></div>
+
+        <div id="deck-container"></div>
+
+        <div class="footer">
+            Need changes? Edit your deck to try new strategies.
+        </div>
     </div>
 
-    <button onclick="goHome()">Home</button>
-    <button class="secondary" onclick="goToDeckBuilder()">Edit Deck</button>
-
     <script>
-        function goHome() {
-            window.location.href = "/home";
-        }
-
-        function goToDeckBuilder() {
-            window.location.href = "/deckbuilding";
-        }
-
-        // Map logical colours from the DB to actual background + text colors
         const cardColorStyles = {
             red: { bg: "#ff7b7b", text: "#ffffff" },
             blue: { bg: "#6fa8ff", text: "#ffffff" },
@@ -114,12 +39,12 @@
             const msg = document.getElementById("status-message");
             msg.textContent = text;
             msg.classList.toggle("error", isError);
+            msg.classList.toggle("success", !isError && text !== "");
         }
 
         async function loadDeck() {
             const token = localStorage.getItem("token");
             if (!token) {
-                // not logged in – kick them to login
                 window.location.href = "/login";
                 return;
             }
@@ -161,7 +86,6 @@
                     const tile = document.createElement("div");
                     tile.className = "card-tile";
 
-                    // Pick colors based on card.colour (fallback to neutral)
                     const colourKey = (card.colour || "").toLowerCase();
                     const style = cardColorStyles[colourKey] || { bg: "#ffffff", text: "#000000" };
 
@@ -175,10 +99,10 @@
                     const meta = document.createElement("div");
                     meta.className = "card-meta";
                     meta.innerHTML = `
-                    Element: <strong>${card.element.toUpperCase()}</strong><br>
-                    Power: <strong>${card.power}</strong><br>
-                    Colour: <strong>${card.colour}</strong>
-                `;
+                        Element: <strong>${card.element.toUpperCase()}</strong><br>
+                        Power: <strong>${card.power}</strong><br>
+                        Colour: <strong>${card.colour}</strong>
+                    `;
 
                     tile.appendChild(title);
                     tile.appendChild(meta);

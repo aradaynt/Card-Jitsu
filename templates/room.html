@@ -6,174 +6,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Room - Card-Jitsu</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f0f8ff;
-        }
-
-        h1 {
-            color: #333366;
-        }
-
-        button {
-            margin: 10px 5px 0 0;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .secondary {
-            background-color: #777;
-        }
-
-        .secondary:hover {
-            background-color: #666;
-        }
-
-        #hand-container {
-            margin-top: 20px;
-        }
-
-        .hand-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
-        }
-
-        .card-tile {
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .card-meta {
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        .card-footer {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        #status-message {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .error {
-            color: red;
-        }
-
-        .info {
-            color: #333;
-        }
-
-        #played-log {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #ffffff;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
-
-        #room-info {
-            margin-bottom: 10px;
-        }
-    </style>
+    <script src="/static/js/common.js" defer></script>
 </head>
 
 <body>
-    <h1>Room</h1>
-    <div id="current-user" style="font-weight: bold; margin-bottom: 10px;"></div>
+    <div id="navbar-placeholder"></div>
 
-    <!-- ROOM CONTROLS -->
-    <div id="room-controls" style="margin-bottom: 20px;">
-        <button id="create-room-btn" class="btn">Create Room</button>
+    <div class="container">
+        <div class="room-header">
+            <h1>Room</h1>
+            <div id="current-user" style="font-weight: bold; margin-bottom: 10px;"></div>
+        </div>
 
-        <input id="join-room-input"
-               type="text"
-               placeholder="Enter room code"
-               style="padding: 8px; margin-left:10px;" />
+        <div id="room-controls" style="margin-bottom: 20px;">
+            <button id="create-room-btn" class="btn">Create Room</button>
 
-        <button id="join-room-btn" class="btn">Join Room</button>
+            <input id="join-room-input"
+                   type="text"
+                   placeholder="Enter room code"
+                   style="padding: 8px; margin-left:10px; max-width: 180px;" />
 
-        <div id="room-info">
-            <p id="room-status" style="font-weight:bold; margin-top:10px;"></p>
-            <p id="score-line" style="margin-top:4px;"></p>
+            <button id="join-room-btn" class="btn">Join Room</button>
+
+            <div id="room-info" class="room-meta">
+                <p id="room-status" style="font-weight:bold; margin-top:10px;"></p>
+                <p id="score-line" style="margin-top:4px;"></p>
+            </div>
+        </div>
+
+        <p>
+            You will see 5 random cards from your active deck.<br>
+            Select one and play it each round.
+        </p>
+
+        <div id="status-message" class="message info"></div>
+
+        <div id="hand-container"></div>
+
+        <button id="play-button">Play Selected Card</button>
+
+        <div id="played-log">
+            <strong>Played cards:</strong>
+            <div id="played-list"></div>
+        </div>
+
+        <div class="footer">
+            Waiting on your opponent? Room status updates every 2 seconds.
         </div>
     </div>
 
-    <p>
-        You will see 5 random cards from your active deck.<br>
-        Select one and play it.
-    </p>
-
-    <div id="status-message" class="info"></div>
-
-    <div id="hand-container"></div>
-
-    <button id="play-button">Play Selected Card</button>
-    <button class="secondary" onclick="goHome()">Home</button>
-
-    <div id="played-log">
-        <strong>Played cards:</strong>
-        <div id="played-list"></div>
-    </div>
-
     <script>
-        function goHome() {
-            window.location.href = "/home";
-        }
-
         function resetMatchUI() {
             hand = [];
             drawPile = [];
             selectedCardId = null;
 
-            // Clear played log + message
             document.getElementById("played-list").innerHTML = "";
             showMessage("");
 
-            // Rebuild a fresh hand if we already have deckCards
             if (deckCards && deckCards.length > 0) {
                 initHand();
             } else {
-                renderHand(); // fallback, probably empty
+                renderHand();
             }
         }
 
-
         const token = localStorage.getItem("token");
-
         const loggedInUser = localStorage.getItem("username");
 
-        document.getElementById("current-user").textContent =
-            "Logged in as: " + (loggedInUser || "Unknown");
-
+        document.addEventListener("DOMContentLoaded", () => {
+            const userDiv = document.getElementById("current-user");
+            userDiv.textContent = "Logged in as: " + (loggedInUser || "Unknown");
+        });
 
         if (!token) {
             window.location.href = "/login";
         }
 
-        // COLOR STYLES FOR CARDS
         const cardColorStyles = {
             red: { bg: "#ff7b7b", text: "#ffffff" },
             blue: { bg: "#6fa8ff", text: "#ffffff" },
@@ -209,7 +118,6 @@
             }
         }
 
-        // Initialize hand of 5
         function initHand() {
             drawPile = deckCards.slice();
             shuffleArray(drawPile);
@@ -220,7 +128,6 @@
             showMessage("Your hand is ready. Select a card.");
         }
 
-        // Render card hand
         function renderHand() {
             const container = document.getElementById("hand-container");
             container.innerHTML = "";
@@ -250,9 +157,7 @@
                     </div>
                 `;
 
-                // select button
                 const footer = document.createElement("div");
-                footer.className = "card-footer";
                 const radio = document.createElement("input");
                 radio.type = "radio";
                 radio.name = "selected-card";
@@ -277,7 +182,6 @@
             list.appendChild(entry);
         }
 
-        // ----- ROOM STATE POLLING -----
         async function fetchRoomState() {
             if (!currentRoomCode) return;
 
@@ -300,15 +204,14 @@
                 roomStatusP.textContent = `Room ${room.room_code} — Status: ${room.status}`;
 
                 scoreLineP.textContent =
-                    `Scores — ${room.player1_username || "Player 1"}: ${room.player1_score} `
-                    + `| ${room.player2_username || "Player 2"}: ${room.player2_score}`
-                    + (room.winner_username ? ` | Winner: ${room.winner_username}` : "");
+                    `Scores — ${room.player1_username || "Player 1"}: ${room.player1_score} ` +
+                    `| ${room.player2_username || "Player 2"}: ${room.player2_score}` +
+                    (room.winner_username ? ` | Winner: ${room.winner_username}` : "");
 
                 if (room.status === "finished" && room.winner_username) {
                     showMessage(`Game Over! Winner: ${room.winner_username}`, false);
                 }
 
-                // If finished, stop polling
                 if (room.status === "finished" && roomPollInterval) {
                     clearInterval(roomPollInterval);
                     roomPollInterval = null;
@@ -321,10 +224,9 @@
         function startRoomPolling() {
             if (roomPollInterval) clearInterval(roomPollInterval);
             roomPollInterval = setInterval(fetchRoomState, 2000);
-            fetchRoomState(); // also do an immediate fetch
+            fetchRoomState();
         }
 
-        // ========== ROOM CREATE / JOIN ==========
         document.getElementById("create-room-btn").addEventListener("click", async () => {
             try {
                 const res = await fetch("/api/rooms", {
@@ -347,6 +249,7 @@
                 roomStatusP.style.color = "green";
                 roomStatusP.textContent = "Room created! Code: " + currentRoomCode + " — Waiting for opponent...";
                 startRoomPolling();
+                resetMatchUI();
             } catch (err) {
                 console.error(err);
                 roomStatusP.textContent = "Network error creating room.";
@@ -393,7 +296,6 @@
             }
         });
 
-        // ========== PLAY CARD ==========
         async function playSelectedCard() {
             if (selectedCardId === null) {
                 showMessage("Please select a card to play.", true);
@@ -420,16 +322,13 @@
                 const data = await resp.json();
 
                 if (!resp.ok) {
-                    // DO NOT update hand on error
                     showMessage(data.error || "Error playing card.", true);
                     return;
                 }
 
-                // Server accepted the move → now update UI
                 logPlayedCard(played);
                 showMessage(`You played ${played.name}!`, false);
 
-                // Remove the card from hand and draw a new one
                 hand.splice(selectedCardId, 1);
                 if (drawPile.length > 0) {
                     hand.push(drawPile.shift());
@@ -437,7 +336,6 @@
                 selectedCardId = null;
                 renderHand();
 
-                // Update room state (scores, status) based on server
                 fetchRoomState();
             } catch (err) {
                 console.error(err);
@@ -445,7 +343,6 @@
             }
         }
 
-        // Load active deck
         async function loadDeck() {
             try {
                 const resp = await fetch("/api/decks/active", {
