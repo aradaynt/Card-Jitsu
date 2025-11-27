@@ -515,6 +515,7 @@ def create_app():
         if user.id not in (room.player1_id, room.player2_id):
             return jsonify({"error": "You are not part of this room"}), 403
 
+        # All moves for history / debugging
         moves = (
             Move.query.filter_by(room_id=room.id)
             .order_by(Move.round_number.asc())
@@ -530,6 +531,41 @@ def create_app():
             for m in moves
         ]
 
+        # ---------- last cards played by each player ----------
+        last_move = (
+            Move.query.filter_by(room_id=room.id)
+            .order_by(Move.round_number.desc())
+            .first()
+        )
+
+        last_round_winner_username = None
+        if last_move and last_move.winner_user_id:
+            winner_user = User.query.get(last_move.winner_user_id)
+            if winner_user:
+                last_round_winner_username = winner_user.username
+
+        def card_to_payload(card: Card | None):
+            if not card:
+                return None
+            return {
+                "id": card.id,
+                "element": card.element,
+                "power": card.power,
+                "colour": card.colour,
+                "name": card.name,
+            }
+
+        p1_last_card_payload = None
+        p2_last_card_payload = None
+
+        if last_move:
+            if last_move.player1_card_id is not None:
+                c1 = Card.query.get(last_move.player1_card_id)
+                p1_last_card_payload = card_to_payload(c1)
+            if last_move.player2_card_id is not None:
+                c2 = Card.query.get(last_move.player2_card_id)
+                p2_last_card_payload = card_to_payload(c2)
+
         return jsonify(
             {
                 "room": {
@@ -540,11 +576,16 @@ def create_app():
                     "winner_id": room.winner_id,
                     "player1_username": room.player1.username if room.player1 else None,
                     "player2_username": room.player2.username if room.player2 else None,
-                    "winner_username": room.winner.username if room.winner_id else None
+                    "winner_username": room.winner.username if room.winner_id else None,
+                    # fields used by the frontend battlefield
+                    "last_round_player1_card": p1_last_card_payload,
+                    "last_round_player2_card": p2_last_card_payload,
+                    "last_round_winner_username": last_round_winner_username,
                 },
                 "moves": moves_payload,
             }
         )
+
 
     @app.post("/api/rooms/<room_code>/play")
     @auth_required

@@ -47,6 +47,25 @@
 
         <button id="play-button">Play Selected Card</button>
 
+        <div id="battlefield">
+            <div class="battle-row">
+                <div class="battle-card-label">Opponent</div>
+                <div id="opponent-slot" class="battle-card-back">
+                    <div class="card-back-pattern"></div>
+                    <span class="card-back-text">Waiting...</span>
+                </div>
+            </div>
+
+            <div class="battle-row">
+                <div class="battle-card-label">You</div>
+                <div id="player-slot" class="battle-card-empty">
+                    <span class="card-empty-text">Play a card</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="round-result" class="round-result"></div>
+
         <div id="played-log">
             <strong>Played cards:</strong>
             <div id="played-list"></div>
@@ -213,13 +232,72 @@
             container.appendChild(grid);
         }
 
+        function renderBattleCard(card, slotElement, isOpponent = false) {
+            if (!slotElement || !card) return;
 
+            // Reset slot
+            slotElement.className = "battle-card-mini";
+            slotElement.innerHTML = "";
+            slotElement.style.border = "none";
+
+            const elementKey = (card.element || "").toLowerCase();
+            const colourKey = (card.colour || "").toLowerCase();
+
+            // Background from bracket colour
+            if (colourStyles[colourKey]) {
+                slotElement.style.backgroundColor = colourStyles[colourKey].bg;
+            } else {
+                slotElement.style.backgroundColor = "#ffffff";
+            }
+
+            // Border from typing
+            if (elementColor[elementKey]) {
+                slotElement.style.border = `2px solid ${elementColor[elementKey]}`;
+            } else {
+                slotElement.style.border = "2px solid #ccc";
+            }
+
+            // Inner container so we don't fight with slotElement's styles
+            const inner = document.createElement("div");
+            inner.style.display = "flex";
+            inner.style.flexDirection = "column";
+            inner.style.alignItems = "center";
+            inner.style.justifyContent = "center";
+
+            // Pokémon sprite (reuses same helper as deck/hand)
+            addPokemonSpriteToCard(card, inner);
+
+            // Title
+            const title = document.createElement("div");
+            title.className = "battle-card-mini-title";
+            title.textContent = card.name;
+            if (elementColor[elementKey]) {
+                title.style.color = elementColor[elementKey];
+            }
+
+            // Meta
+            const meta = document.createElement("div");
+            meta.className = "battle-card-mini-meta";
+            meta.innerHTML = `
+                <strong>${card.element.toUpperCase()}</strong><br>
+                Power: ${card.power}<br>
+                Colour: ${card.colour}
+            `;
+
+            inner.appendChild(title);
+            inner.appendChild(meta);
+            slotElement.appendChild(inner);
+        }
 
         function logPlayedCard(card) {
             const list = document.getElementById("played-list");
             const entry = document.createElement("div");
             entry.textContent = `You played: ${card.name} (${card.element.toUpperCase()} ${card.power}, ${card.colour})`;
             list.appendChild(entry);
+
+            // Update your battlefield slot
+            const playerSlot = document.getElementById("player-slot");
+            renderBattleCard(card, playerSlot, false);
         }
 
         async function fetchRoomState() {
@@ -243,6 +321,72 @@
                 roomStatusP.style.color = "black";
                 roomStatusP.textContent = `Room ${room.room_code} — Status: ${room.status}`;
 
+                const opponentSlot  = document.getElementById("opponent-slot");
+                const playerSlot    = document.getElementById("player-slot");
+                const roundResultEl = document.getElementById("round-result");
+
+                const isPlayer1 = room.player1_username === loggedInUser;
+
+                const myServerCard = isPlayer1
+                    ? room.last_round_player1_card
+                    : room.last_round_player2_card;
+
+                const oppServerCard = isPlayer1
+                    ? room.last_round_player2_card
+                    : room.last_round_player1_card;
+
+                const bothPlayed = !!(room.last_round_player1_card && room.last_round_player2_card);
+
+                // Clear win/lose/draw classes every poll
+                if (playerSlot) {
+                    playerSlot.classList.remove("win", "lose", "draw");
+                }
+                if (opponentSlot) {
+                    opponentSlot.classList.remove("win", "lose", "draw");
+                }
+
+                if (bothPlayed) {
+                    // Reveal both cards only once both players have played
+                    if (playerSlot && myServerCard) {
+                        renderBattleCard(myServerCard, playerSlot, false);
+                    }
+                    if (opponentSlot && oppServerCard) {
+                        renderBattleCard(oppServerCard, opponentSlot, true);
+                    }
+
+                    const lastWinner = room.last_round_winner_username || null;
+
+                    if (lastWinner && myServerCard && oppServerCard) {
+                        if (lastWinner === loggedInUser) {
+                            if (playerSlot) playerSlot.classList.add("win");
+                            if (opponentSlot) opponentSlot.classList.add("lose");
+                            if (roundResultEl) roundResultEl.textContent = "You won this round!";
+                        } else {
+                            if (playerSlot) playerSlot.classList.add("lose");
+                            if (opponentSlot) opponentSlot.classList.add("win");
+                            if (roundResultEl) roundResultEl.textContent = `${lastWinner} won this round.`;
+                        }
+                    } else if (myServerCard && oppServerCard) {
+                        if (playerSlot) playerSlot.classList.add("draw");
+                        if (opponentSlot) opponentSlot.classList.add("draw");
+                        if (roundResultEl) roundResultEl.textContent = "This round was a draw.";
+                    }
+                } else {
+                    // New round in progress: don't reveal new opponent card yet
+                    if (roundResultEl) roundResultEl.textContent = "";
+
+                    // Keep your slot as whatever logPlayedCard() set,
+                    // but reset opponent to card back if you want
+                    if (opponentSlot) {
+                        opponentSlot.className = "battle-card-back";
+                        opponentSlot.innerHTML = `
+                            <div class="card-back-pattern"></div>
+                            <span class="card-back-text">Waiting...</span>
+                        `;
+                    }
+                }
+
+                // Scores / winner
                 scoreLineP.textContent =
                     `Scores — ${room.player1_username || "Player 1"}: ${room.player1_score} ` +
                     `| ${room.player2_username || "Player 2"}: ${room.player2_score}` +

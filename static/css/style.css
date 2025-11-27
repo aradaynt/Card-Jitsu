@@ -276,6 +276,101 @@ label {
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
+/* Battlefield / top-down board style */
+#battlefield {
+    margin-top: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.battle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.battle-card-label {
+    font-weight: 600;
+    min-width: 80px;
+    text-align: right;
+}
+
+.battle-card-back,
+.battle-card-empty,
+.battle-card-mini {
+    width: 190px;
+    height: 110px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #f3f4ff;
+}
+
+.battle-card-back {
+    background: radial-gradient(circle at 30% 20%, #ffffff 0, #d0d6ff 50%, #3f51b5 110%);
+    overflow: hidden;
+    color: #fff;
+}
+
+.card-back-pattern {
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(255,255,255,0.18) 0, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(255,255,255,0.23) 0, transparent 45%);
+    opacity: 0.9;
+}
+
+.card-back-text {
+    position: relative;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.card-empty-text {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+/* Mini board card content */
+.battle-card-mini {
+    width: 190px;
+    height: 125px;          /* a bit taller for sprite + text */
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.battle-card-mini-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    max-width: 160px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;  /* long names get "..." */
+}
+
+.battle-card-mini-meta {
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: center;
+}
+
 /* Home page hero text */
 .hero-text {
     margin-bottom: 20px;
@@ -371,4 +466,29 @@ label {
 #selected-count {
     margin-top: 8px;
     font-weight: 600;
+}
+
+/* Smaller sprite inside battlefield mini cards */
+.battle-card-mini .card-sprite img {
+    width: 40px;
+    height: 40px;
+}
+
+.round-result {
+    text-align: center;
+    font-weight: 600;
+    margin: 6px 0 4px;
+}
+
+.battle-card-mini.win {
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.65);
+    transform: translateY(-2px);
+}
+
+.battle-card-mini.lose {
+    opacity: 0.6;
+}
+
+.battle-card-mini.draw {
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.7);
 }

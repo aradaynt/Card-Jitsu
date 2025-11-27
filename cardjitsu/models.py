@@ -126,7 +126,47 @@ class Room(db.Model):
 
     def __repr__(self) -> str:
         return f"<Room id={self.id} room_code={self.room_code!r} status={self.status!r}>"
-    
+
+    # helper to serialize room + last played cards
+    def to_dict(self):
+        from .models import Move  # adjust import path if needed
+
+        base = {
+            "room_code": self.room_code,
+            "status": self.status,
+            "player1_username": self.player1.username if self.player1 else None,
+            "player2_username": self.player2.username if self.player2 else None,
+            "player1_score": self.player1_score,
+            "player2_score": self.player2_score,
+            "winner_username": self.winner.username if self.winner else None,
+        }
+
+        # Latest move for each player, based on newest ID (or created_at if you prefer)
+        last_p1_move = (
+            Move.query
+            .filter_by(room_id=self.id, player_id=self.player1_id)
+            .order_by(Move.id.desc())
+            .first()
+        )
+        last_p2_move = (
+            Move.query
+            .filter_by(room_id=self.id, player_id=self.player2_id)
+            .order_by(Move.id.desc())
+            .first()
+        )
+
+        def move_card_to_dict(move):
+            if not move:
+                return None
+            # 👇 adjust this depending on how Move links to the card
+            # Example if Move has `card` relationship:
+            return move.card.to_dict()
+            # or, if Move only has card_id: Card.query.get(move.card_id).to_dict()
+
+        base["last_round_player1_card"] = move_card_to_dict(last_p1_move)
+        base["last_round_player2_card"] = move_card_to_dict(last_p2_move)
+
+        return base
 
 class Move(db.Model):
     __tablename__ = "moves"
