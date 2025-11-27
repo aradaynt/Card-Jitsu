@@ -7,6 +7,8 @@
     <title>Room - Card-Jitsu</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/common.js" defer></script>
+    <script src="/static/js/pokemon.js" defer></script>
+
 </head>
 
 <body>
@@ -156,35 +158,40 @@
                 const colourKey = (card.colour || "").toLowerCase();
                 const elementKey = (card.element || "").toLowerCase();
 
-                // 1) Background from the bracket colour (red/blue/yellow…)
+                // Background from bracket colour
                 if (colourStyles[colourKey]) {
                     tile.style.backgroundColor = colourStyles[colourKey].bg;
                 }
 
-                // 2) Border from the Pokémon typing (Fire/Water/Grass/Snow)
+                // Border from typing
                 if (elementColor[elementKey]) {
                     tile.style.borderColor = elementColor[elementKey];
                 }
 
-                // Card content
-                tile.innerHTML = `
-                    <div class="card-title">${card.name}</div>
-                    <div class="card-meta">
-                        Element: <strong>${card.element.toUpperCase()}</strong><br>
-                        Power: <strong>${card.power}</strong><br>
-                        Colour: <strong>${card.colour}</strong>
-                    </div>
-                `;
+                // Add Pokémon sprite at top
+                addPokemonSpriteToCard(card, tile);
 
-                // Make the title text match the typing colour too
-                const titleEl = tile.querySelector(".card-title");
-                if (titleEl && elementColor[elementKey]) {
-                    titleEl.style.color = elementColor[elementKey];
+                // Title
+                const title = document.createElement("div");
+                title.className = "card-title";
+                title.textContent = card.name;
+                if (elementColor[elementKey]) {
+                    title.style.color = elementColor[elementKey];
                 }
 
-                // Footer with radio select
+                // Meta info
+                const meta = document.createElement("div");
+                meta.className = "card-meta";
+                meta.innerHTML = `
+                    Element: <strong>${card.element.toUpperCase()}</strong><br>
+                    Power: <strong>${card.power}</strong><br>
+                    Colour: <strong>${card.colour}</strong>
+                `;
+
+                // Footer with radio
                 const footer = document.createElement("div");
                 footer.className = "card-footer";
+
                 const radio = document.createElement("input");
                 radio.type = "radio";
                 radio.name = "selected-card";
@@ -194,6 +201,10 @@
 
                 footer.appendChild(radio);
                 footer.appendChild(document.createTextNode(" Select"));
+
+                // Assemble card
+                tile.appendChild(title);
+                tile.appendChild(meta);
                 tile.appendChild(footer);
 
                 grid.appendChild(tile);
@@ -201,6 +212,7 @@
 
             container.appendChild(grid);
         }
+
 
 
         function logPlayedCard(card) {
