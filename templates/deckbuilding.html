@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Deck Building - Card-Jitsu</title>
+
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/common.js" defer></script>
 </head>
@@ -31,6 +32,25 @@
     <script>
         const selectedUserCardIds = new Set();
         let cardsData = [];
+
+        // Bracket colours → background
+        const colourStyles = {
+            red:    { bg: "#ffecec" },
+            blue:   { bg: "#e7f0ff" },
+            yellow: { bg: "#fff6d8" },
+            green:  { bg: "#e4f7e7" },
+            purple: { bg: "#f2e9ff" },
+            orange: { bg: "#ffeddc" }
+        };
+
+        // Typing colours → border + header text
+        const elementColor = {
+            fire:   "#d94c32",
+            water:  "#3576e8",
+            grass:  "#2ea84a",
+            snow:   "#5aa8d9"
+        };
+
 
         function showMessage(text, isError = false) {
             const msg = document.getElementById("status-message");
@@ -63,6 +83,7 @@
         function renderCards() {
             const container = document.getElementById("card-selection");
             container.innerHTML = "";
+            container.className = "deck-grid";
 
             if (!cardsData.length) {
                 container.textContent = "No cards found. Did you register correctly?";
@@ -70,24 +91,54 @@
             }
 
             cardsData.forEach(card => {
-                const row = document.createElement("div");
-                row.className = "card-row";
+                const tile = document.createElement("div");
+                tile.className = "deck-card";
 
-                const info = document.createElement("div");
-                info.className = "card-info";
-                info.textContent = `${card.element.toUpperCase()} ${card.power} (${card.colour}) - ${card.name}`;
-
-                const btn = document.createElement("button");
                 const isSelected = selectedUserCardIds.has(card.user_card_id);
+                if (isSelected) tile.classList.add("selected");
 
-                btn.textContent = isSelected ? "Deselect" : "Select";
-                btn.onclick = () => toggleSelect(card.user_card_id);
+                const colourKey = (card.colour || "").toLowerCase();
+                const elementKey = (card.element || "").toLowerCase();
 
-                row.appendChild(info);
-                row.appendChild(btn);
-                container.appendChild(row);
+                // 1) BACKGROUND = bracket colour
+                if (colourStyles[colourKey]) {
+                    tile.style.backgroundColor = colourStyles[colourKey].bg;
+                }
+
+                // 2) BORDER = typing colour
+                if (elementColor[elementKey]) {
+                    tile.style.borderColor = elementColor[elementKey];
+                }
+
+                // 3) Header text also uses typing colour
+                const header = document.createElement("div");
+                header.className = "deck-card-header";
+                header.textContent = `${card.element.toUpperCase()} ${card.power} (${card.colour})`;
+
+                if (elementColor[elementKey]) {
+                    header.style.color = elementColor[elementKey];
+                }
+
+                const meta = document.createElement("div");
+                meta.className = "deck-card-meta";
+                meta.textContent = card.name;
+
+                const tag = document.createElement("div");
+                tag.className = "deck-card-tag";
+                tag.textContent = isSelected ? "Selected" : "Click to select";
+
+                tile.appendChild(header);
+                tile.appendChild(meta);
+                tile.appendChild(tag);
+
+                tile.addEventListener("click", () => toggleSelect(card.user_card_id));
+
+                container.appendChild(tile);
             });
         }
+
+
+
 
         async function loadUserCards() {
             const token = localStorage.getItem("token");

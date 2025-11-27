@@ -83,13 +83,22 @@
             window.location.href = "/login";
         }
 
-        const cardColorStyles = {
-            red: { bg: "#ff7b7b", text: "#ffffff" },
-            blue: { bg: "#6fa8ff", text: "#ffffff" },
-            yellow: { bg: "#ffe97a", text: "#000000" },
-            green: { bg: "#7be27b", text: "#000000" },
-            purple: { bg: "#c28aff", text: "#ffffff" },
-            orange: { bg: "#ffb66b", text: "#000000" },
+        // Background based on colour in the name (blue, red, yellow…)
+        const colourStyles = {
+            red:    { bg: "#ffecec" },
+            blue:   { bg: "#e7f0ff" },
+            yellow: { bg: "#fff6d8" },
+            green:  { bg: "#e4f7e7" },
+            purple: { bg: "#f2e9ff" },
+            orange: { bg: "#ffeddc" }
+        };
+
+        // Border + title colour based on typing (element)
+        const elementColor = {
+            fire:   "#d94c32",
+            water:  "#3576e8",
+            grass:  "#2ea84a",
+            snow:   "#5aa8d9"
         };
 
         let deckCards = [];
@@ -144,10 +153,20 @@
                 const tile = document.createElement("div");
                 tile.className = "card-tile";
 
-                const style = cardColorStyles[(card.colour || "").toLowerCase()] || { bg: "#fff", text: "#000" };
-                tile.style.backgroundColor = style.bg;
-                tile.style.color = style.text;
+                const colourKey = (card.colour || "").toLowerCase();
+                const elementKey = (card.element || "").toLowerCase();
 
+                // 1) Background from the bracket colour (red/blue/yellow…)
+                if (colourStyles[colourKey]) {
+                    tile.style.backgroundColor = colourStyles[colourKey].bg;
+                }
+
+                // 2) Border from the Pokémon typing (Fire/Water/Grass/Snow)
+                if (elementColor[elementKey]) {
+                    tile.style.borderColor = elementColor[elementKey];
+                }
+
+                // Card content
                 tile.innerHTML = `
                     <div class="card-title">${card.name}</div>
                     <div class="card-meta">
@@ -157,7 +176,15 @@
                     </div>
                 `;
 
+                // Make the title text match the typing colour too
+                const titleEl = tile.querySelector(".card-title");
+                if (titleEl && elementColor[elementKey]) {
+                    titleEl.style.color = elementColor[elementKey];
+                }
+
+                // Footer with radio select
                 const footer = document.createElement("div");
+                footer.className = "card-footer";
                 const radio = document.createElement("input");
                 radio.type = "radio";
                 radio.name = "selected-card";
@@ -174,6 +201,7 @@
 
             container.appendChild(grid);
         }
+
 
         function logPlayedCard(card) {
             const list = document.getElementById("played-list");
