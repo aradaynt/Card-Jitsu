@@ -9,27 +9,31 @@
     <script src="/static/js/common.js" defer></script>
 </head>
 
-<body class="auth-wrapper">
+<body>
+    <!-- Navbar gets injected here by common.js -->
     <div id="navbar-placeholder"></div>
 
-    <div class="auth-card">
-        <h1>Login</h1>
+    <!-- This wrapper is what we center, NOT the whole body -->
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <h1>Login</h1>
 
-        <form id="login-form">
-            <label for="username">Username</label>
-            <input id="username" name="username" required />
+            <form id="login-form">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" required />
 
-            <label for="password">Password</label>
-            <input id="password" name="password" type="password" required />
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" required />
 
-            <button type="submit">Login</button>
-        </form>
+                <button type="submit">Login</button>
+            </form>
 
-        <div id="message" class="message"></div>
+            <div id="message" class="message"></div>
 
-        <div class="link">
-            Don’t have an account?
-            <a href="/register">Register</a>
+            <div class="link">
+                Don’t have an account?
+                <a href="/register">Register</a>
+            </div>
         </div>
     </div>
 

@@ -4,37 +4,43 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Login - Card-Jitsu</title>
+    <title>Register - Card-Jitsu</title>
+
+    <!-- Styles + shared navbar/modal logic -->
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/common.js" defer></script>
 </head>
 
-<body class="auth-wrapper">
+<body>
+    <!-- Navbar will be injected here -->
     <div id="navbar-placeholder"></div>
 
-    <div class="auth-card">
-        <h1>Login</h1>
+    <!-- Centered wrapper -->
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <h1>Register</h1>
 
-        <form id="login-form">
-            <label for="username">Username</label>
-            <input id="username" name="username" required />
+            <form id="register-form">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" required />
 
-            <label for="password">Password</label>
-            <input id="password" name="password" type="password" required />
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" required />
 
-            <button type="submit">Login</button>
-        </form>
+                <button type="submit">Register</button>
+            </form>
 
-        <div id="message" class="message"></div>
+            <div id="message" class="message"></div>
 
-        <div class="link">
-            Don’t have an account?
-            <a href="/register">Register</a>
+            <div class="link">
+                Already have an account?
+                <a href="/login">Login</a>
+            </div>
         </div>
     </div>
 
     <script>
-        const form = document.getElementById("login-form");
+        const form = document.getElementById("register-form");
         const messageDiv = document.getElementById("message");
 
         form.addEventListener("submit", async (e) => {
@@ -46,7 +52,7 @@
             const password = document.getElementById("password").value.trim();
 
             try {
-                const resp = await fetch("/api/login", {
+                const resp = await fetch("/api/register", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -57,21 +63,25 @@
                 const data = await resp.json();
 
                 if (!resp.ok) {
-                    messageDiv.textContent = data.error || "Login failed";
+                    messageDiv.textContent = data.error || "Registration failed";
                     messageDiv.classList.add("error");
                     return;
                 }
 
+                // Store login info
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("username", data.user.username);
 
+                // Success message
                 messageDiv.classList.remove("error");
                 messageDiv.classList.add("success");
-                messageDiv.textContent = "Logged in! Redirecting to home...";
+                messageDiv.textContent = "Registration successful! Redirecting to login...";
 
+                // Redirect to login page
                 setTimeout(() => {
-                    window.location.href = "/home";
-                }, 800);
+                    window.location.href = "/login";
+                }, 1000);
+
             } catch (err) {
                 console.error(err);
                 messageDiv.textContent = "Network error";
@@ -79,6 +89,6 @@
             }
         });
     </script>
-</body>
 
+</body>
 </html>

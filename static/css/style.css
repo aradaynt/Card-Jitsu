@@ -169,7 +169,22 @@ label {
     text-decoration: underline;
 }
 
-/* User bar inside pages (like home) */
+/* Navbar link-style button (for Rules) */
+.navbar .link-button {
+    background: none;
+    border: none;
+    color: white;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+}
+
+.navbar .link-button:hover {
+    text-decoration: underline;
+}
+
+/* User bar */
 .user-bar {
     display: flex;
     justify-content: space-between;
@@ -188,11 +203,12 @@ label {
 }
 
 /* Auth pages (login/register) */
+/* Auth pages (login/register) */
 .auth-wrapper {
-    min-height: 100vh;
+    min-height: calc(100vh - 80px); /* leave space for navbar */
     display: flex;
-    flex-direction: column;
     justify-content: center;
+    align-items: center;
     padding: 40px 20px;
 }
 
@@ -201,7 +217,7 @@ label {
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     max-width: 380px;
-    margin: 0 auto;
+    margin: 0 auto;   /* <— centers card horizontally */
     padding: 24px 28px 28px 28px;
 }
 
@@ -215,7 +231,7 @@ label {
     margin-top: 12px;
 }
 
-/* Rules page */
+/* Rules page card */
 .rules-card {
     background-color: #ffffff;
     border-radius: 12px;
@@ -252,21 +268,6 @@ label {
     margin-bottom: 20px;
     font-size: 16px;
     line-height: 1.5;
-}
-
-/* Nav "button" that looks like a link */
-.navbar .link-button {
-    background: none;
-    border: none;
-    color: white;
-    font: inherit;
-    cursor: pointer;
-    padding: 0;
-    margin: 0 0 0 6px;
-}
-
-.navbar .link-button:hover {
-    text-decoration: underline;
 }
 
 /* Rules modal */
