@@ -15,64 +15,94 @@
     <div id="navbar-placeholder"></div>
 
     <div class="container">
-        <div class="room-header">
-            <h1>Room</h1>
-            <div id="current-user" style="font-weight: bold; margin-bottom: 10px;"></div>
-        </div>
+        <div class="room-layout">
+            <!-- LEFT / MAIN COLUMN -->
+            <div class="room-main">
+                <div class="room-header">
+                    <h1>Room</h1>
+                    <div id="current-user" style="font-weight: bold; margin-bottom: 10px;"></div>
+                </div>
 
-        <div id="room-controls" style="margin-bottom: 20px;">
-            <button id="create-room-btn" class="btn">Create Room</button>
+                <div id="room-controls" style="margin-bottom: 20px;">
+                    <button id="create-room-btn" class="btn">Create Room</button>
 
-            <input id="join-room-input"
-                   type="text"
-                   placeholder="Enter room code"
-                   style="padding: 8px; margin-left:10px; max-width: 180px;" />
+                    <input id="join-room-input"
+                           type="text"
+                           placeholder="Enter room code"
+                           style="padding: 8px; margin-left:10px; max-width: 180px;" />
 
-            <button id="join-room-btn" class="btn">Join Room</button>
+                    <button id="join-room-btn" class="btn">Join Room</button>
 
-            <div id="room-info" class="room-meta">
-                <p id="room-status" style="font-weight:bold; margin-top:10px;"></p>
-                <p id="score-line" style="margin-top:4px;"></p>
-            </div>
-        </div>
+                    <div id="room-info" class="room-meta">
+                        <p id="room-status" style="font-weight:bold; margin-top:10px;"></p>
+                        <p id="score-line" style="margin-top:4px;"></p>
+                    </div>
+                </div>
 
-        <p>
-            You will see 5 random cards from your active deck.<br>
-            Select one and play it each round.
-        </p>
+                <p>
+                    You will see 5 random cards from your active deck.<br>
+                    Select one and play it each round.
+                </p>
 
-        <div id="status-message" class="message info"></div>
+                <div id="status-message" class="message info"></div>
 
-        <div id="hand-container"></div>
+                <div id="hand-container"></div>
 
-        <button id="play-button">Play Selected Card</button>
+                <button id="play-button">Play Selected Card</button>
 
-        <div id="battlefield">
-            <div class="battle-row">
-                <div class="battle-card-label">Opponent</div>
-                <div id="opponent-slot" class="battle-card-back">
-                    <div class="card-back-pattern"></div>
-                    <span class="card-back-text">Waiting...</span>
+                <div id="battlefield">
+                    <div class="battle-row">
+                        <div class="battle-card-label">Opponent</div>
+                        <div id="opponent-slot" class="battle-card-back">
+                            <div class="card-back-pattern"></div>
+                            <span class="card-back-text">Waiting...</span>
+                        </div>
+                    </div>
+
+                    <div class="battle-row">
+                        <div class="battle-card-label">You</div>
+                        <div id="player-slot" class="battle-card-empty">
+                            <span class="card-empty-text">Play a card</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="round-result" class="round-result"></div>
+
+                <div id="played-log">
+                    <strong>Played cards:</strong>
+                    <div id="played-list"></div>
+                </div>
+
+                <div class="footer">
+                    Waiting on your opponent? Room status updates every 2 seconds.
                 </div>
             </div>
 
-            <div class="battle-row">
-                <div class="battle-card-label">You</div>
-                <div id="player-slot" class="battle-card-empty">
-                    <span class="card-empty-text">Play a card</span>
+            <!-- RIGHT / SIDE PROGRESS PANEL -->
+            <aside class="room-progress">
+                <h2>Win Progress</h2>
+
+                <div class="win-section">
+                    <h4>Same Element<br><small>3 different colours</small></h4>
+                    <div id="win-same-element" class="win-card-list"></div>
                 </div>
-            </div>
-        </div>
 
-        <div id="round-result" class="round-result"></div>
+                <div class="win-section">
+                    <h4>All Elements<br><small>3 different colours</small></h4>
+                    <div id="win-all-elements" class="win-card-list"></div>
+                </div>
 
-        <div id="played-log">
-            <strong>Played cards:</strong>
-            <div id="played-list"></div>
-        </div>
+                <div class="win-section">
+                    <h4>Same Colour<br><small>All elements</small></h4>
+                    <div id="win-same-colour" class="win-card-list"></div>
+                </div>
 
-        <div class="footer">
-            Waiting on your opponent? Room status updates every 2 seconds.
+                <hr />
+
+                <h3>Your Won Cards</h3>
+                <div id="won-cards-all" class="win-card-list"></div>
+            </aside>
         </div>
     </div>
 
@@ -392,6 +422,9 @@
                     `| ${room.player2_username || "Player 2"}: ${room.player2_score}` +
                     (room.winner_username ? ` | Winner: ${room.winner_username}` : "");
 
+                // Update win-condition progress panel
+                renderWinProgress(room);
+    
                 if (room.status === "finished" && room.winner_username) {
                     showMessage(`Game Over! Winner: ${room.winner_username}`, false);
                 }
@@ -545,6 +578,70 @@
             } catch (err) {
                 console.error(err);
                 showMessage("Failed to load deck.", true);
+            }
+        }
+
+        function renderWinProgress(room) {
+            const sameElementDiv = document.getElementById("win-same-element");
+            const allElementsDiv = document.getElementById("win-all-elements");
+            const sameColourDiv  = document.getElementById("win-same-colour");
+            const allWonDiv      = document.getElementById("won-cards-all");
+
+            if (!sameElementDiv || !allElementsDiv || !sameColourDiv || !allWonDiv) {
+                return; // HTML not present (safety)
+            }
+
+            // Clear previous content
+            [sameElementDiv, allElementsDiv, sameColourDiv, allWonDiv].forEach(div => {
+                div.innerHTML = "";
+            });
+
+            const isPlayer1 = room.player1_username === loggedInUser;
+            const yourWonCards = isPlayer1
+                ? (room.player1_won_cards || [])
+                : (room.player2_won_cards || []);
+
+            if (!yourWonCards.length) {
+                return;
+            }
+
+            function makeChip(card) {
+                const chip = document.createElement("span");
+                chip.className = "win-chip";
+                chip.textContent = `${card.element} ${card.power} (${card.colour})`;
+                return chip;
+            }
+
+            // Show all won cards
+            yourWonCards.forEach(card => {
+                allWonDiv.appendChild(makeChip(card));
+            });
+
+            // Try all 3-card combinations to see which ones satisfy each CP pattern
+            const n = yourWonCards.length;
+            for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    for (let k = j + 1; k < n; k++) {
+                        const trio = [yourWonCards[i], yourWonCards[j], yourWonCards[k]];
+                        const elements = new Set(trio.map(c => c.element));
+                        const colours  = new Set(trio.map(c => c.colour));
+
+                        // Way 1: same element, 3 different colours
+                        if (elements.size === 1 && colours.size === 3) {
+                            trio.forEach(c => sameElementDiv.appendChild(makeChip(c)));
+                        }
+
+                        // Way 2: all different elements, 3 different colours
+                        if (elements.size === 3 && colours.size === 3) {
+                            trio.forEach(c => allElementsDiv.appendChild(makeChip(c)));
+                        }
+
+                        // Way 3: all different elements, same colour
+                        if (elements.size === 3 && colours.size === 1) {
+                            trio.forEach(c => sameColourDiv.appendChild(makeChip(c)));
+                        }
+                    }
+                }
             }
         }
 

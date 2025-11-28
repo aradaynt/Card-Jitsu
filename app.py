@@ -4,6 +4,8 @@ import random
 from flask import Flask, request, jsonify, g, render_template
 import jwt
 from functools import wraps
+import itertools
+
 
 from cardjitsu.models import (
     db,
@@ -165,6 +167,83 @@ def create_app():
         if beats.get(card2.element) == card1.element:
             return 2
         return 0
+    
+    def get_player_winning_cards(room: Room, player_index: int) -> list[Card]:
+        """
+        Return the list of Card objects this player has WON so far
+        in this room (one card per winning round).
+        player_index: 1 for player1, 2 for player2.
+        """
+        if player_index not in (1, 2):
+            return []
+
+        player_id = room.player1_id if player_index == 1 else room.player2_id
+        if not player_id:
+            return []
+
+        # All resolved moves where this player was the winner
+        moves = (
+            Move.query
+            .filter_by(room_id=room.id, resolved=True, winner_user_id=player_id)
+            .order_by(Move.round_number.asc())
+            .all()
+        )
+
+        cards: list[Card] = []
+        for m in moves:
+            if player_index == 1:
+                card_id = m.player1_card_id
+            else:
+                card_id = m.player2_card_id
+
+            if card_id is None:
+                continue
+
+            c = Card.query.get(card_id)
+            if c:
+                cards.append(c)
+
+        return cards
+
+    def has_club_penguin_win(cards: list[Card]) -> bool:
+        """
+        Club Penguin win rules (Fire / Water / Grass + colours).
+
+        Win if ANY of these patterns appears among your won cards:
+
+        1) Three of the SAME element, with 3 DIFFERENT colours
+           (e.g. Fire-Red, Fire-Blue, Fire-Green)
+
+        2) Three of ALL DIFFERENT elements (fire, water, grass),
+           with 3 DIFFERENT colours
+           (e.g. Fire-Red, Water-Blue, Grass-Green)
+
+        3) Three of the SAME colour, with ALL DIFFERENT elements
+           (e.g. Fire-Red, Water-Red, Grass-Red)
+        """
+        if len(cards) < 3:
+            return False
+
+        for trio in itertools.combinations(cards, 3):
+            elements = [c.element for c in trio]
+            colours = [c.colour for c in trio]
+
+            unique_elements = set(elements)
+            unique_colours = set(colours)
+
+            # Way 1: same element, all different colours
+            if len(unique_elements) == 1 and len(unique_colours) == 3:
+                return True
+
+            # Way 2: all different elements, all different colours
+            if len(unique_elements) == 3 and len(unique_colours) == 3:
+                return True
+
+            # Way 3: all different elements, same colour
+            if len(unique_elements) == 3 and len(unique_colours) == 1:
+                return True
+
+        return False
 
     def resolve_move(move: Move, room: Room) -> None:
         """Resolve a move once both players have chosen a card."""
@@ -184,12 +263,24 @@ def create_app():
         move.winner_user_id = winner_user_id
         move.resolved = True
 
-        # ez win rule for now: first to 3 points
-        if winner_user_id is not None and (
-            room.player1_score >= 3 or room.player2_score >= 3
-        ):
+        # ---- Club Penguin win condition instead of "first to 3" ----
+        final_winner_id = None
+
+        # Check player 1's won cards
+        if room.player1_id:
+            p1_cards = get_player_winning_cards(room, player_index=1)
+            if has_club_penguin_win(p1_cards):
+                final_winner_id = room.player1_id
+
+        # Check player 2's won cards (only if nobody has won yet)
+        if final_winner_id is None and room.player2_id:
+            p2_cards = get_player_winning_cards(room, player_index=2)
+            if has_club_penguin_win(p2_cards):
+                final_winner_id = room.player2_id
+
+        if final_winner_id is not None:
             room.status = "finished"
-            room.winner_id = winner_user_id
+            room.winner_id = final_winner_id
             room.ended_at = datetime.utcnow()
 
         db.session.commit()
@@ -544,6 +635,7 @@ def create_app():
             if winner_user:
                 last_round_winner_username = winner_user.username
 
+        # ---- won cards for each player (for UI tracker) ----
         def card_to_payload(card: Card | None):
             if not card:
                 return None
@@ -566,6 +658,32 @@ def create_app():
                 c2 = Card.query.get(last_move.player2_card_id)
                 p2_last_card_payload = card_to_payload(c2)
 
+        # All cards P1 has won so far
+        player1_won_cards = []
+        if room.player1_id:
+            for m in moves:
+                if (
+                    m.resolved
+                    and m.winner_user_id == room.player1_id
+                    and m.player1_card_id is not None
+                ):
+                    c = Card.query.get(m.player1_card_id)
+                    if c:
+                        player1_won_cards.append(card_to_payload(c))
+
+        # All cards P2 has won so far
+        player2_won_cards = []
+        if room.player2_id:
+            for m in moves:
+                if (
+                    m.resolved
+                    and m.winner_user_id == room.player2_id
+                    and m.player2_card_id is not None
+                ):
+                    c = Card.query.get(m.player2_card_id)
+                    if c:
+                        player2_won_cards.append(card_to_payload(c))
+
         return jsonify(
             {
                 "room": {
@@ -577,14 +695,18 @@ def create_app():
                     "player1_username": room.player1.username if room.player1 else None,
                     "player2_username": room.player2.username if room.player2 else None,
                     "winner_username": room.winner.username if room.winner_id else None,
-                    # fields used by the frontend battlefield
+                    # last round display
                     "last_round_player1_card": p1_last_card_payload,
                     "last_round_player2_card": p2_last_card_payload,
                     "last_round_winner_username": last_round_winner_username,
+                    # NEW: won cards for each player
+                    "player1_won_cards": player1_won_cards,
+                    "player2_won_cards": player2_won_cards,
                 },
                 "moves": moves_payload,
             }
         )
+
 
 
     @app.post("/api/rooms/<room_code>/play")

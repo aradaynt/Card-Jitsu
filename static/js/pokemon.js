@@ -24,12 +24,6 @@ const PokemonPools = {
         stage1:    ["ivysaur", "gloom", "grovyle"],
         stage2:    ["venusaur", "sceptile", "victreebel"],
         legendary: ["celebi", "shaymin", "virizion"]
-    },
-    snow: { // treat snow as ice type
-        basic:     ["snover", "spheal", "cubchoo"],
-        stage1:    ["glalie", "sealeo", "beartic"],
-        stage2:    ["abomasnow", "walrein", "froslass"],
-        legendary: ["articuno", "regice", "kyurem"]
     }
 };
 

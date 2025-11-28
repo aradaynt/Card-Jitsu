@@ -492,3 +492,89 @@ label {
 .battle-card-mini.draw {
     box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.7);
 }
+
+.room-layout {
+    display: flex;
+    gap: 1.5rem;
+}
+
+/* main content grows, side panel is narrower */
+.room-main {
+    flex: 3;
+}
+
+.room-progress {
+    flex: 1;
+    background: #f8fbff;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 0 4px rgba(0,0,0,0.08);
+    font-size: 0.9rem;
+}
+
+.win-section {
+    margin-bottom: 12px;
+}
+
+.win-card-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.win-chip {
+    border-radius: 999px;
+    padding: 2px 8px;
+    border: 1px solid #ccc;
+    font-size: 0.75rem;
+    background: white;
+}
+
+.room-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.room-main {
+    flex: 3;
+}
+
+.room-progress {
+    flex: 1;
+    background: #f8fbff;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
+}
+
+.room-progress h2,
+.room-progress h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.win-section {
+    margin-bottom: 10px;
+}
+
+.win-section h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.85rem;
+}
+
+.win-card-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.win-chip {
+    border-radius: 999px;
+    border: 1px solid #ccc;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    background: #ffffff;
+    white-space: nowrap;
+}
