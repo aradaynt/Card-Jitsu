@@ -29,8 +29,8 @@ function injectNavbar() {
                 </p>
                 <ul>
                     <li>Fire</li>
+                    <li>Water</li>
                     <li>Grass</li>
-                    <li>Snow</li>
                 </ul>
                 <p>Each card also has a power number (1–12) and a colour.</p>
 
@@ -39,9 +39,9 @@ function injectNavbar() {
                     <li>
                         Elements follow rock-paper-scissors logic:
                         <ul>
-                            <li>Fire beats Snow</li>
-                            <li>Snow beats Grass</li>
-                            <li>Grass beats Fire</li>
+                            <li>Fire beats Grass</li>
+                            <li>Grass beats Water</li>
+                            <li>Water beats Fire</li>
                         </ul>
                     </li>
                     <li>If both cards are the same element, the higher power number wins.</li>
@@ -50,7 +50,7 @@ function injectNavbar() {
                     <li>
                         A match ends when one player achieves:
                         <ul>
-                            <li>One round win with each element (Fire, Grass, Snow), or</li>
+                            <li>One round win with each element (Fire, Water, Grass), or</li>
                             <li>Three round wins using different colours of the same element.</li>
                         </ul>
                     </li>

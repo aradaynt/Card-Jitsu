@@ -182,3 +182,53 @@ A deck of exactly 10 chosen cards
 |winner_user_id|Foreign Key -> User|
 
 
+## Testing & QA
+
+Our testing strategy combines unit test, integration tests, and end to end tests to verify core functionality. We used pytest for automated backend testinf and Selenium for browser bases end to end testinf. The goal was not exhaustive coverage, but to ensure that critical features (game rules, authentication, and user stats) behave correctly.
+
+### Unit test (pytest)
+
+In the file ```test_game_logic.py``` we have 3 unit tests
+- test_compare_cards_fire_beats_grass: this ensures that the elemental rules correctly give fire a win over grass when power is equal or advantage applies
+- test_compate_cards_grass_beats_water: this is similar to the last one but with grass and water
+- test_has_club_penguin_win_three_same_element_diff_colours: checks that the win condition is triggered when a player has three cards of the same element with three different colours.
+
+### Integration test (pytest)
+
+In the file ```test_api_flow.py``` we have 1 integration test<br>
+It calls ```/api/register``` and registers a user, then calls ```/api/login``` to login with that same user and obtains a JWT, uses the token to access ```/api/me```, and then confirms the ```win_count``` and ```total_games``` are changed correctly.
+
+### How to Run
+
+```powershell
+python -m pytest
+```
+
+### Selenium End to End Test
+
+The Selenium test is in the file ```test_login_flow.py``` .<br>
+```run_login_flow```: 
+- Opens the real ```/login``` page in a browser
+- Enter credentials for the user that was already created in that browser
+- Submits the form and waits for the redirect
+- Verifies that the page title corresponds to the home page and that the main heading and the button are visible.
+- This validates the full path from frontend form -> ```/api/login``` -> homepage UI.
+
+The app must already be running and you must register the user 'Aradtesting' with the password 'test'
+
+```powershell
+#Terminal 1
+python app.py
+
+#Terminal 2
+python selenium_tests/test_login_flow.py
+```
+
+### How to run all tests
+```powershell
+# Run unit + Integration tests
+python -m pytest
+
+# Run Selenium End to End tests (with app running)
+python selenium_tests/test_login_flow.py
+```

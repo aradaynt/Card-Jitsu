@@ -11,6 +11,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    win_count = db.Column(db.Integer, default=0, nullable=False)
+    total_games = db.Column(db.Integer, default=0, nullable=False)
 
     decks = db.relationship( "Deck", back_populates="user", cascade="all, delete-orphan")
     user_cards = db.relationship( "UserCard", back_populates="user", cascade="all, delete-orphan")
@@ -158,7 +160,7 @@ class Room(db.Model):
         def move_card_to_dict(move):
             if not move:
                 return None
-            # 👇 adjust this depending on how Move links to the card
+            # adjust this depending on how Move links to the card
             # Example if Move has `card` relationship:
             return move.card.to_dict()
             # or, if Move only has card_id: Card.query.get(move.card_id).to_dict()
