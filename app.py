@@ -513,7 +513,67 @@ def create_app():
                 }
             }
         )
-    
+  
+    @app.get("/api/decks")
+    @auth_required
+    def list_decks():
+        """Return all decks for the current user (for deck selector UI)."""
+        user = g.current_user
+
+        decks = (
+            Deck.query
+            .filter_by(user_id=user.id)
+            .order_by(Deck.id.desc())
+            .all()
+        )
+
+        deck_payload = []
+        for d in decks:
+            card_count = (
+                db.session.query(DeckCard)
+                .filter_by(deck_id=d.id)
+                .count()
+            )
+
+            deck_payload.append(
+                {
+                    "id": d.id,
+                    "name": d.name,
+                    "is_active": d.is_active,
+                    "card_count": card_count,
+                }
+            )
+
+        return jsonify({"decks": deck_payload})
+
+    @app.post("/api/decks/<int:deck_id>/activate")
+    @auth_required
+    def activate_deck(deck_id: int):
+        """Set one of the user's decks as the active deck."""
+        user = g.current_user
+
+        deck = Deck.query.filter_by(id=deck_id, user_id=user.id).first()
+        if not deck:
+            return jsonify({"error": "Deck not found"}), 404
+
+        # Turn off old active deck(s)
+        Deck.query.filter_by(user_id=user.id, is_active=True).update({"is_active": False})
+
+        # Activate this one
+        deck.is_active = True
+        db.session.commit()
+
+        return jsonify(
+            {
+                "message": "deck activated",
+                "deck": {
+                    "id": deck.id,
+                    "name": deck.name,
+                    "is_active": deck.is_active,
+                },
+            }
+        )
+
     @app.get("/api/me")
     @auth_required
     def get_me():

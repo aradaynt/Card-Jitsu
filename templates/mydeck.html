@@ -25,6 +25,10 @@
 
         <div id="deck-container"></div>
 
+        <h2>Your Saved Decks</h2>
+        <div id="deck-list"></div>
+
+
         <p style="margin-top: 24px; text-align:center; font-size: 14px;">
             Need changes? Edit your deck in the
             <a href="/deckbuilding">Deck Builder</a> to try new strategies.
@@ -143,7 +147,106 @@
             }
         }
 
-        document.addEventListener("DOMContentLoaded", loadDeck);
+        function renderDeckList(decks) {
+            const container = document.getElementById("deck-list");
+            if (!container) return;
+
+            container.innerHTML = "";
+
+            if (!decks.length) {
+                container.textContent = "You don't have any saved decks yet.";
+                return;
+            }
+
+            const list = document.createElement("div");
+            list.className = "deck-list";
+
+            decks.forEach(deck => {
+                const row = document.createElement("div");
+                row.className = "deck-list-item";
+
+                const label = document.createElement("span");
+                label.textContent = `${deck.name} (${deck.card_count} cards)`;
+                if (deck.is_active) {
+                    label.textContent += " — ACTIVE";
+                    label.style.fontWeight = "bold";
+                }
+
+                const button = document.createElement("button");
+                button.textContent = deck.is_active ? "Active" : "Set Active";
+                button.disabled = deck.is_active;
+                button.className = "btn secondary";
+                button.style.marginLeft = "8px";
+
+                button.addEventListener("click", () => {
+                    activateDeck(deck.id);
+                });
+
+                row.appendChild(label);
+                row.appendChild(button);
+                list.appendChild(row);
+            });
+
+            container.appendChild(list);
+        }
+
+        async function loadUserDecks() {
+            if (!token) return;
+
+            try {
+                const resp = await fetch("/api/decks", {
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                if (!resp.ok) {
+                    return; // don't break the page if this fails
+                }
+
+                const data = await resp.json();
+                renderDeckList(data.decks || []);
+            } catch (err) {
+                console.error("Error loading decks:", err);
+            }
+        }
+
+        async function activateDeck(deckId) {
+            if (!token) {
+                window.location.href = "/login";
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/decks/${deckId}/activate`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    showMessage(data.error || "Failed to activate deck", true);
+                    return;
+                }
+
+                showMessage(`'${data.deck.name}' is now your active deck.`, false);
+                // refresh active deck + list
+                loadDeck();
+                loadUserDecks();
+            } catch (err) {
+                console.error("Error activating deck:", err);
+                showMessage("Network error while activating deck", true);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadDeck();
+            loadUserDecks();
+        });
+
     </script>
 </body>
 

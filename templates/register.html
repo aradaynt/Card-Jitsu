@@ -75,11 +75,11 @@
                 // Success message
                 messageDiv.classList.remove("error");
                 messageDiv.classList.add("success");
-                messageDiv.textContent = "Registration successful! Redirecting to login...";
+                messageDiv.textContent = "Registration and login successful! Redirecting to home...";
 
-                // Redirect to login page
+                // Redirect to home page
                 setTimeout(() => {
-                    window.location.href = "/login";
+                    window.location.href = "/home";
                 }, 1000);
 
             } catch (err) {

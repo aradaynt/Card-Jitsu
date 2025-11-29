@@ -19,6 +19,10 @@
         <h1>Deck Building</h1>
         <p>Select exactly 25 cards from your collection to build your deck.</p>
 
+        <label for="deck-name">Deck Name:</label>
+        <input id="deck-name" type="text" placeholder="Deck Name" style="margin-bottom: 12px; max-width: 260px; display: block;" />
+
+
         <div id="selected-count">Selected: 0 / 25</div>
         <div id="status-message" class="message"></div>
 
@@ -185,8 +189,11 @@
                 return;
             }
 
+            const deckNameInput = document.getElementById("deck-name");
+            const deckName = deckNameInput ? deckNameInput.value.trim() || "Main Deck" : "Main Deck";
+
             const body = {
-                name: "Main Deck",
+                name: deckName,
                 user_card_ids: Array.from(selectedUserCardIds),
             };
 
@@ -208,6 +215,7 @@
                 }
 
                 showMessage("Deck created successfully!", false);
+                loadUserDecks(); //added to refresh the list
             } catch (err) {
                 console.error(err);
                 showMessage("Network error while creating deck", true);

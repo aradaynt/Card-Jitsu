@@ -8,6 +8,7 @@ function injectNavbar() {
                 <span class="navbar-title">Card-Jitsu</span>
                 <a href="/home">Home</a>
                 <a href="/deckbuilding">Deck Builder</a>
+                <a href="/mydeck">My Deck</a>
                 <a href="/room">Rooms</a>
                 <button class="link-button" id="rules-link">Rules</button>
             </div>
