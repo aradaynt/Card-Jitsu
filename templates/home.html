@@ -57,8 +57,49 @@
             }
         }
 
+        async function loadUserStats() {
+            const statsDiv = document.getElementById("user-stats");
+            if (!statsDiv) return;
+
+            const token = localStorage.getItem("token");
+            if (!token) {
+                // Not logged in: show nothing or a friendly hint
+                statsDiv.innerHTML = "";
+                return;
+            }
+
+            try {
+                const resp = await fetch("/api/me", {
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                    },
+                });
+
+                if (!resp.ok) {
+                    statsDiv.innerHTML = "";
+                    return;
+                }
+
+                const data = await resp.json();
+                const wins = data.win_count ?? 0;
+                const total = data.total_games ?? 0;
+                const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
+
+                statsDiv.innerHTML = `
+                <h2>Welcome, ${data.username}</h2>
+                <p><strong>Wins:</strong> ${wins}</p>
+                <p><strong>Total Games:</strong> ${total}</p>
+                <p><strong>Win Rate:</strong> ${winRate}%</p>
+            `;
+            } catch (err) {
+                console.error("Error loading user stats:", err);
+                statsDiv.innerHTML = "";
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
             checkDeck();
+            loadUserStats();
         });
     </script>
 </head>
@@ -72,6 +113,8 @@
             Your journey to becoming a Card-Jitsu master begins here.
             Build your deck, learn the rules, and battle other players in real-time rooms.
         </p>
+
+        <div id="user-stats" class="stats-panel"></div>
 
         <button id="rulesbutton" onclick="goToRulesPage()">Game Info &amp; Rules Page</button>
 
