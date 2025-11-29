@@ -196,24 +196,24 @@ class Move(db.Model):
             f"resolved={self.resolved}>"
         )
 
-
 def seed_cards(session=None) -> None:
     if session is None:
         session = db.session
     if session.query(Card).count() > 0:
         return
+
     elements = ["fire", "water", "grass"]
     colours = ["red", "blue", "yellow", "green", "purple", "orange"]
-    for element in elements:
-        for power in range(1,13):
-            colour = colours[(power - 1) % len(colours)]
-            session.add(
-            Card(
-                element = element,
-                power = power,
-                colour = colour,
-                name = f"{element.title()} {power} {colour.title()}",
-                )
-            )
-    session.commit()
 
+    for element in elements:
+        for power in range(1, 13):         # 12 power levels
+            for colour in colours:         # 6 colours for each
+                session.add(
+                    Card(
+                        element=element,
+                        power=power,
+                        colour=colour,
+                        name=f"{element.title()} {power} {colour.title()}",
+                    )
+                )
+    session.commit()

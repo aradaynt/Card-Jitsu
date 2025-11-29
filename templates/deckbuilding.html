@@ -17,9 +17,9 @@
 
     <div class="container">
         <h1>Deck Building</h1>
-        <p>Select exactly 10 cards from your collection to build your deck.</p>
+        <p>Select exactly 25 cards from your collection to build your deck.</p>
 
-        <div id="selected-count">Selected: 0 / 10</div>
+        <div id="selected-count">Selected: 0 / 25</div>
         <div id="status-message" class="message"></div>
 
         <div id="card-selection"></div>
@@ -63,7 +63,7 @@
 
         function updateSelectedCount() {
             const countDiv = document.getElementById("selected-count");
-            countDiv.textContent = `Selected: ${selectedUserCardIds.size} / 10`;
+            countDiv.textContent = `Selected: ${selectedUserCardIds.size} / 25`;
         }
 
         function toggleSelect(userCardId) {
@@ -71,8 +71,8 @@
                 selectedUserCardIds.delete(userCardId);
                 showMessage("");
             } else {
-                if (selectedUserCardIds.size >= 10) {
-                    showMessage("You can only select 10 cards for your deck.", true);
+                if (selectedUserCardIds.size >= 25) {
+                    showMessage("You can only select 25 cards for your deck.", true);
                     return;
                 }
                 selectedUserCardIds.add(userCardId);
@@ -180,8 +180,8 @@
                 return;
             }
 
-            if (selectedUserCardIds.size !== 10) {
-                showMessage("Your deck must contain exactly 10 cards before finalizing.", true);
+            if (selectedUserCardIds.size !== 25) {
+                showMessage("Your deck must contain exactly 25 cards before finalizing.", true);
                 return;
             }
 

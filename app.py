@@ -192,7 +192,7 @@ def resolve_move(move: Move, room: Room) -> None:
 
 
 def _create_demo_user(username: str, password: str) -> None:
-    """Create one demo user with 15 cards and an active 10-card deck."""
+    """Create one demo user with 40 cards and an active 25-card deck."""
     if User.query.filter_by(username=username).first():
         return  # already exists
 
@@ -202,23 +202,23 @@ def _create_demo_user(username: str, password: str) -> None:
     db.session.add(user)
     db.session.commit()
 
-    # give them 15 random cards
+    # give them 40 random cards
     all_cards = Card.query.all()
-    if len(all_cards) < 15:
-        raise RuntimeError("Card pool not seeded correctly")
+    if len(all_cards) < 40:
+        raise RuntimeError("Card pool not seeded correctly (need at least 40 cards)")
 
-    chosen_cards = random.sample(all_cards, 15)
+    chosen_cards = random.sample(all_cards, 40)
 
     for c in chosen_cards:
         db.session.add(UserCard(user_id=user.id, card_id=c.id))
     db.session.commit()
 
-    # make an active deck from the first 10 cards
+    # make an active deck from the first 25 cards
     deck = Deck(user_id=user.id, name=f"{username}'s Deck", is_active=True)
     db.session.add(deck)
     db.session.flush()  # get deck.id
 
-    for c in chosen_cards[:10]:
+    for c in chosen_cards[:25]:
         db.session.add(DeckCard(deck_id=deck.id, card_id=c.id))
 
     db.session.commit()
@@ -338,10 +338,11 @@ def create_app():
         db.session.commit()
 
         all_cards = Card.query.all()
-        if len(all_cards) < 15:
-            return jsonify({"error": "Card pool not seeded correctly"}), 500
+        if len(all_cards) < 40:
+            return jsonify({"error": "Card pool not seeded correctly (need at least 40 cards)"}), 500
 
-        chosen_cards = random.sample(all_cards, 15)
+        # Give the new user 40 distinct cards in their collection
+        chosen_cards = random.sample(all_cards, 40)
         for card in chosen_cards:
             db.session.add(UserCard(user_id=user.id, card_id=card.id))
         db.session.commit()
@@ -421,11 +422,11 @@ def create_app():
         name = (data.get("name") or "Main Deck").strip()
         user_card_ids = data.get("user_card_ids") or []
 
-        if not isinstance(user_card_ids, list) or len(user_card_ids) != 10:
+        if not isinstance(user_card_ids, list) or len(user_card_ids) != 25:
             return (
                 jsonify(
                     {
-                        "error": "Deck must contain exactly 10 cards",
+                        "error": "Deck must contain exactly 25 cards",
                         "got": len(user_card_ids),
                     }
                 ),
@@ -439,7 +440,7 @@ def create_app():
             ).all()
         )
 
-        if len(rows) != 10:
+        if len(rows) != 25:
             return jsonify({"error": "One or more cards do not belong to this user"}), 400
 
         Deck.query.filter_by(user_id=user.id, is_active=True).update(
