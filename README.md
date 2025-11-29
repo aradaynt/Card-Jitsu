@@ -232,3 +232,66 @@ python -m pytest
 # Run Selenium End to End tests (with app running)
 python selenium_tests/test_login_flow.py
 ```
+
+## Deployment & DevOps
+
+### Docker Containerization
+
+This project is fully containerized using Docker to ensure consistent execution across different environments
+
+#### Step 1 Build the image:
+```powershell
+docker build -t cardjitsu .
+```
+#### Step 2 Run the container:
+```powershell
+docker run -p 5000:5000 cardjitsu
+```
+#### Step 3 Once running, the app can be accessed at:
+
+WIP
+
+### Why Docker?
+Containerization solves:
+- "Works on my machine" problems
+- OS & dependency inconsistencies
+- Environment replication fro testing and deployment
+
+This application runs inside a stable Python 3.12-slim container regardless of the host system.
+
+### CI/CD Pipeline (GitHub Actions)
+
+This project uses a GitHub Actions CI workflow that runs automatically on every push or pull request to ```main```.
+
+
+The Workflow performs the following steps
+- Installs dependencies
+- Runs linting
+- Executes autmated pytest unit & integration tests
+- Ensures that the build remains stable before merging
+
+If tests fail, GitHub prevents merging changes into the main branch
+
+### Production Deployment
+
+This application is designed to be deployed on a Linux server using Docker
+
+#### Deployment Steps:
+```powershell
+git pull
+docker build -t cardjitsu .
+docker stop cardjitsu || true
+docker rm cardjitsu || true
+docker run -d --name cardjitsu -p 80:5000 cardjitsu
+```
+
+### Summary of DevOps Workflow
+
+1. Developer pushes code to GitHub
+2. CI pipeline runs tests
+3. If all tests pass -> merge to main
+4. Server pulls latest code
+5. Docker rebuilds & restarts container
+6. Updated app goes live
+
+This ensures safe deployments, predictable environments, repeatable builds, and confident iteration velocity
