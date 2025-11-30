@@ -1,11 +1,20 @@
+"""
+Flask application for the Card-Jitsu multiplayer game.
+
+This module defines:
+- Core game-logic helper functions (compare_cards, resolve_move, etc.).
+- Demo user and card seeding utilities.
+- The Flask application factory (create_app).
+- All REST API endpoints for authentication, deck-building, rooms, and gameplay.
+"""
+
 from datetime import datetime, timedelta, timezone
 import random
-
-from flask import Flask, request, jsonify, g, render_template, current_app
-import jwt
 from functools import wraps
 import itertools
 
+from flask import Flask, request, jsonify, g, render_template, current_app
+import jwt
 
 from cardjitsu.models import (
     db,
@@ -21,14 +30,24 @@ from cardjitsu.models import (
 
 
 # ---------------- GAME LOGIC HELPERS ---------------- #
-
 def compare_cards(card1: Card, card2: Card) -> int:
     """
-    Return:
-        0 -> draw
-        1 -> card1 wins
-        2 -> card2 wins
-    Using fire/grass/water RPS + power tie-breaker.
+    Compare two cards using Card-Jitsu rules.
+
+    First applies the element rock-paper-scissors logic:
+    - fire beats grass
+    - grass beats water
+    - water beats fire
+
+    If elements are the same, the higher power wins. If both element and
+    power are the same, the result is a draw.
+
+    Args:
+        card1 (Card): First player's card.
+        card2 (Card): Second player's card.
+
+    Returns:
+        int: 0 for draw, 1 if card1 wins, 2 if card2 wins.
     """
     if not card1 or not card2:
         return 0
@@ -50,11 +69,20 @@ def compare_cards(card1: Card, card2: Card) -> int:
         return 2
     return 0
 
+
 def get_player_winning_cards(room: Room, player_index: int) -> list[Card]:
     """
-    Return the list of Card objects this player has WON so far
-    in this room (one card per winning round).
-    player_index: 1 for player1, 2 for player2.
+    Return the list of cards a player has won in a room so far.
+
+    This looks at all resolved moves in the room and collects the card
+    used by the specified player in each round they won.
+
+    Args:
+        room (Room): The game room to inspect.
+        player_index (int): 1 for player1, 2 for player2.
+
+    Returns:
+        list[Card]: Cards that the player has won, one per winning round.
     """
     if player_index not in (1, 2):
         return []
@@ -65,8 +93,7 @@ def get_player_winning_cards(room: Room, player_index: int) -> list[Card]:
 
     # All resolved moves where this player was the winner
     moves = (
-        Move.query
-        .filter_by(room_id=room.id, resolved=True, winner_user_id=player_id)
+        Move.query.filter_by(room_id=room.id, resolved=True, winner_user_id=player_id)
         .order_by(Move.round_number.asc())
         .all()
     )
@@ -87,25 +114,32 @@ def get_player_winning_cards(room: Room, player_index: int) -> list[Card]:
 
     return cards
 
+
 def has_club_penguin_win(cards: list[Card]) -> bool:
     """
-    Club Penguin win rules (Fire / Water / Grass + colours).
+    Check if a set of cards satisfies the Club Penguin win conditions.
 
-    Win if ANY of these patterns appears among your won cards:
+    The player wins if ANY of these patterns is present among their
+    winning cards:
 
-    1) Three of the SAME element, with 3 DIFFERENT colours
-        (e.g. Fire-Red, Fire-Blue, Fire-Green)
-
+    1) Three of the SAME element, with 3 DIFFERENT colours.
+       Example: Fire-Red, Fire-Blue, Fire-Green
     2) Three of ALL DIFFERENT elements (fire, water, grass),
-        with 3 DIFFERENT colours
-        (e.g. Fire-Red, Water-Blue, Grass-Green)
+       with 3 DIFFERENT colours.
+       Example: Fire-Red, Water-Blue, Grass-Green
+    3) Three of ALL DIFFERENT elements but the SAME colour.
+       Example: Fire-Red, Water-Red, Grass-Red
 
-    3) Three of the SAME colour, with ALL DIFFERENT elements
-        (e.g. Fire-Red, Water-Red, Grass-Red)
+    Args:
+        cards (list[Card]): All cards the player has won so far.
+
+    Returns:
+        bool: True if at least one winning pattern is found, False otherwise.
     """
     if len(cards) < 3:
         return False
 
+    # Check all 3-card combinations for any of the win patterns
     for trio in itertools.combinations(cards, 3):
         elements = [c.element for c in trio]
         colours = [c.colour for c in trio]
@@ -127,8 +161,22 @@ def has_club_penguin_win(cards: list[Card]) -> bool:
 
     return False
 
+
 def resolve_move(move: Move, room: Room) -> None:
-    """Resolve a move once both players have chosen a card."""
+    """
+    Resolve a single move once both players have selected a card.
+
+    This function:
+    - Determines the round winner using compare_cards().
+    - Updates the round's winner, room scores, and move state.
+    - Checks if the Club Penguin win condition is now satisfied for
+      either player and, if so, marks the room as finished and updates
+      user statistics.
+
+    Args:
+        move (Move): The move (round) being resolved.
+        room (Room): The room in which this move is played.
+    """
     c1 = Card.query.get(move.player1_card_id)
     c2 = Card.query.get(move.player2_card_id)
 
@@ -145,9 +193,8 @@ def resolve_move(move: Move, room: Room) -> None:
     move.winner_user_id = winner_user_id
     move.resolved = True
 
-    # ---- Club Penguin win condition instead of "first to 3" ----
+    # ---- Club Penguin win condition ----
     final_winner_id = None
-
 
     # Check player 1's won cards
     if room.player1_id:
@@ -162,25 +209,24 @@ def resolve_move(move: Move, room: Room) -> None:
             final_winner_id = room.player2_id
 
     if final_winner_id is not None:
-
         room.status = "finished"
         room.winner_id = final_winner_id
         room.ended_at = datetime.utcnow()
 
-        # figure out loser
+        # Figure out loser
         loser_id = None
         if final_winner_id == room.player1_id:
             loser_id = room.player2_id
         elif final_winner_id == room.player2_id:
             loser_id = room.player1_id
 
-        # update winner stats
+        # Update winner stats
         winner = User.query.get(final_winner_id)
         if winner:
             winner.win_count = (winner.win_count or 0) + 1
             winner.total_games = (winner.total_games or 0) + 1
 
-        # update loser stats
+        # Update loser stats
         if loser_id is not None:
             loser = User.query.get(loser_id)
             if loser:
@@ -188,21 +234,33 @@ def resolve_move(move: Move, room: Room) -> None:
 
     db.session.commit()
 
+
 # ---------------- DEMO USER SEEDING (OUTSIDE create_app) ---------------- #
-
-
 def _create_demo_user(username: str, password: str) -> None:
-    """Create one demo user with 40 cards and an active 25-card deck."""
+    """
+    Create a single demo user with a collection and active deck.
+
+    The demo user is given:
+    - A new User entry with the provided username and password.
+    - 40 random UserCard entries (distinct cards).
+    - One active Deck containing the first 25 of those 40 cards.
+
+    If the username already exists, this function does nothing.
+
+    Args:
+        username (str): Username for the demo account.
+        password (str): Plaintext password for the demo account.
+    """
     if User.query.filter_by(username=username).first():
         return  # already exists
 
-    # create user
+    # Create user
     user = User(username=username, win_count=0, total_games=0)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
 
-    # give them 40 random cards
+    # Give them 40 random cards
     all_cards = Card.query.all()
     if len(all_cards) < 40:
         raise RuntimeError("Card pool not seeded correctly (need at least 40 cards)")
@@ -213,7 +271,7 @@ def _create_demo_user(username: str, password: str) -> None:
         db.session.add(UserCard(user_id=user.id, card_id=c.id))
     db.session.commit()
 
-    # make an active deck from the first 25 cards
+    # Make an active deck from the first 25 cards
     deck = Deck(user_id=user.id, name=f"{username}'s Deck", is_active=True)
     db.session.add(deck)
     db.session.flush()  # get deck.id
@@ -225,7 +283,14 @@ def _create_demo_user(username: str, password: str) -> None:
 
 
 def seed_demo_users() -> None:
-    """Create base demo logins + decks if DB has no users."""
+    """
+    Create base demo users with decks if the database has no users.
+
+    This is mainly for local development/testing so the game can be
+    played right away using:
+    - username: player1, password: test123
+    - username: player2, password: test123
+    """
     if User.query.count() > 0:
         return  # already have real users, do nothing
 
@@ -234,27 +299,45 @@ def seed_demo_users() -> None:
 
 
 # ---------------- APP FACTORY ---------------- #
-
-
 def create_app():
+    """
+    Create and configure the Flask application.
+
+    This function:
+    - Configures the Flask app and SQLAlchemy.
+    - Creates tables and seeds the card pool and demo users.
+    - Registers all helper functions and API routes.
+
+    Returns:
+        Flask: The configured Flask application instance.
+    """
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cardjitsu.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # WE NEED TO CHANGE THIS BEFORE REAL DEPLOY
+    # NOTE: Replace with a secure secret key before real deployment.
     app.config["SECRET_KEY"] = "dev-secret-change-me"
 
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
-        seed_cards()       # fill Card table once if empty
-        seed_demo_users()  # create player1 / player2 demo accounts
+        seed_cards()       # Fill Card table once if empty
+        seed_demo_users()  # Create player1 / player2 demo accounts
 
     # ---------- helper functions for auth ---------- #
-
     def create_token(user_id: int) -> str:
-        """Create a JWT that expires in 24 hours."""
+        """
+        Create a JWT access token for a given user.
+
+        The token uses the app's SECRET_KEY and is valid for 24 hours.
+
+        Args:
+            user_id (int): ID of the authenticated user.
+
+        Returns:
+            str: Encoded JWT token.
+        """
         payload = {
             "sub": str(user_id),
             "iat": datetime.now(timezone.utc),
@@ -263,11 +346,34 @@ def create_app():
         return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
 
     def decode_token(token: str):
-        """Decode JWT and return its payload."""
+        """
+        Decode a JWT access token.
+
+        Args:
+            token (str): Encoded JWT token.
+
+        Returns:
+            dict: Decoded token payload.
+
+        Raises:
+            jwt.ExpiredSignatureError: If the token has expired.
+            jwt.InvalidTokenError: If the token is invalid for any reason.
+        """
         return jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
 
     def auth_required(fn):
-        """Decorator to protect routes with JWT auth."""
+        """
+        Decorator to protect a route with JWT-based authentication.
+
+        The decorator expects an Authorization header with a Bearer token.
+        On success, the authenticated User is stored in `g.current_user`.
+
+        Args:
+            fn (Callable): View function to wrap.
+
+        Returns:
+            Callable: Wrapped view function enforcing authentication.
+        """
 
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -300,26 +406,48 @@ def create_app():
         return wrapper
 
     # ---------- helper functions for rooms ---------- #
-
     def generate_room_code(length: int = 6) -> str:
-        """Generate a unique room code."""
+        """
+        Generate a unique alphanumeric room code.
+
+        The code is composed of characters chosen to avoid ambiguity
+        (e.g., no 0/O or 1/I).
+
+        Args:
+            length (int, optional): Desired code length. Defaults to 6.
+
+        Returns:
+            str: A unique room code not currently used in the database.
+        """
         chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         while True:
             code = "".join(random.choice(chars) for _ in range(length))
             if not Room.query.filter_by(room_code=code).first():
                 return code
 
-
     # ---------------- ROUTES ---------------- #
-
     @app.route("/")
     def index():
+        """
+        Render the login page (root route).
+        """
         return render_template("login.html")
 
     # ---- Auth API ---- #
-
     @app.post("/api/register")
     def register():
+        """
+        Register a new user and create their initial card collection.
+
+        Expects JSON payload with:
+        - username (str)
+        - password (str)
+
+        The user is given 40 random cards and a JWT token is returned.
+
+        Returns:
+            Response: JSON with message, token, and user info.
+        """
         data = request.get_json() or {}
         username = (data.get("username") or "").strip()
         password = (data.get("password") or "").strip()
@@ -339,7 +467,12 @@ def create_app():
 
         all_cards = Card.query.all()
         if len(all_cards) < 40:
-            return jsonify({"error": "Card pool not seeded correctly (need at least 40 cards)"}), 500
+            return (
+                jsonify(
+                    {"error": "Card pool not seeded correctly (need at least 40 cards)"}
+                ),
+                500,
+            )
 
         # Give the new user 40 distinct cards in their collection
         chosen_cards = random.sample(all_cards, 40)
@@ -362,6 +495,16 @@ def create_app():
 
     @app.post("/api/login")
     def login():
+        """
+        Authenticate an existing user and return a JWT.
+
+        Expects JSON payload with:
+        - username (str)
+        - password (str)
+
+        Returns:
+            Response: JSON with message, token, and basic user info.
+        """
         data = request.get_json() or {}
         username = (data.get("username") or "").strip()
         password = (data.get("password") or "").strip()
@@ -384,10 +527,17 @@ def create_app():
         )
 
     # ---- User cards ---- #
-
     @app.get("/api/user/cards")
     @auth_required
     def get_user_cards():
+        """
+        Return all cards owned by the current user.
+
+        The result is a list of user-card entries joined with card data.
+
+        Returns:
+            Response: JSON object with a "cards" list.
+        """
         user = g.current_user
 
         rows = (
@@ -412,10 +562,23 @@ def create_app():
         return jsonify({"cards": cards_payload})
 
     # ---- Deck endpoints ---- #
-
     @app.post("/api/decks")
     @auth_required
     def create_or_replace_deck():
+        """
+        Create or replace the current user's active deck.
+
+        Expects JSON with:
+        - name (str, optional): Deck name. Defaults to "Main Deck".
+        - user_card_ids (list[int]): Exactly 25 UserCard IDs belonging
+          to the current user.
+
+        Any existing active deck is deactivated before the new one is
+        created.
+
+        Returns:
+            Response: JSON with a message and basic deck info.
+        """
         user = g.current_user
         data = request.get_json() or {}
 
@@ -443,6 +606,7 @@ def create_app():
         if len(rows) != 25:
             return jsonify({"error": "One or more cards do not belong to this user"}), 400
 
+        # Deactivate any existing active deck for this user
         Deck.query.filter_by(user_id=user.id, is_active=True).update(
             {"is_active": False}
         )
@@ -473,6 +637,13 @@ def create_app():
     @app.get("/api/decks/active")
     @auth_required
     def get_active_deck():
+        """
+        Return the current user's active deck and its cards.
+
+        Returns:
+            Response: JSON with "deck" set to deck info and card list,
+            or "deck": None if the user has no active deck.
+        """
         user = g.current_user
 
         deck = (
@@ -513,16 +684,23 @@ def create_app():
                 }
             }
         )
-  
+
     @app.get("/api/decks")
     @auth_required
     def list_decks():
-        """Return all decks for the current user (for deck selector UI)."""
+        """
+        Return all decks for the current user.
+
+        This is used by the UI to let players select which deck to
+        activate.
+
+        Returns:
+            Response: JSON object with a "decks" list.
+        """
         user = g.current_user
 
         decks = (
-            Deck.query
-            .filter_by(user_id=user.id)
+            Deck.query.filter_by(user_id=user.id)
             .order_by(Deck.id.desc())
             .all()
         )
@@ -549,7 +727,16 @@ def create_app():
     @app.post("/api/decks/<int:deck_id>/activate")
     @auth_required
     def activate_deck(deck_id: int):
-        """Set one of the user's decks as the active deck."""
+        """
+        Set one of the user's decks as the active deck.
+
+        Args:
+            deck_id (int): ID of the deck the user wants to activate.
+
+        Returns:
+            Response: JSON with message and basic deck info,
+            or an error if the deck is not found.
+        """
         user = g.current_user
 
         deck = Deck.query.filter_by(id=deck_id, user_id=user.id).first()
@@ -577,50 +764,70 @@ def create_app():
     @app.get("/api/me")
     @auth_required
     def get_me():
-        """Return the current user's profile + stats."""
+        """
+        Return the current user's basic profile and stats.
+
+        Returns:
+            Response: JSON with username, win_count, and total_games.
+        """
         user = g.current_user
 
-        return jsonify({
-            "username": user.username,
-            "win_count": user.win_count,
-            "total_games": user.total_games,
-        })
+        return jsonify(
+            {
+                "username": user.username,
+                "win_count": user.win_count,
+                "total_games": user.total_games,
+            }
+        )
 
     # ---- Page routes (templates) ---- #
-
     @app.get("/home")
     def home_page():
+        """Render the home page template."""
         return render_template("home.html")
 
     @app.get("/rules")
     def rules_page():
+        """Render the rules page template."""
         return render_template("rules.html")
 
     @app.get("/deckbuilding")
     def deckbuilding_page():
+        """Render the deck-building page template."""
         return render_template("deckbuilding.html")
 
     @app.get("/register")
     def register_page():
+        """Render the registration page template."""
         return render_template("register.html")
 
     @app.get("/login")
     def login_page():
+        """Render the login page template."""
         return render_template("login.html")
 
     @app.get("/mydeck")
     def mydeck_page():
+        """Render the 'my deck' management page template."""
         return render_template("mydeck.html")
 
     @app.get("/room")
     def room_page():
+        """Render the room page template."""
         return render_template("room.html")
 
     # ---- Room + match endpoints ---- #
-
     @app.post("/api/rooms")
     @auth_required
     def create_room():
+        """
+        Create a new room with the current user as player 1.
+
+        Requires the user to have an active deck before creating a room.
+
+        Returns:
+            Response: JSON with message and room identifier info.
+        """
         user = g.current_user
 
         active_deck = Deck.query.filter_by(user_id=user.id, is_active=True).first()
@@ -656,6 +863,20 @@ def create_app():
     @app.post("/api/rooms/join")
     @auth_required
     def join_room():
+        """
+        Join an existing room as player 2.
+
+        Expects JSON payload with:
+        - room_code (str)
+
+        The user must:
+        - Not already be player 1 in that room.
+        - Have an active deck.
+        - The room must still be in "waiting" status.
+
+        Returns:
+            Response: JSON with message and room info, or error details.
+        """
         user = g.current_user
         data = request.get_json() or {}
         room_code = (data.get("room_code") or "").strip().upper()
@@ -698,6 +919,21 @@ def create_app():
     @app.get("/api/rooms/<room_code>/state")
     @auth_required
     def room_state(room_code):
+        """
+        Return the current state of a room.
+
+        This includes:
+        - Room metadata (scores, players, status).
+        - Last round's cards and winner.
+        - All moves (for history).
+        - All cards each player has won so far.
+
+        Args:
+            room_code (str): Public code used to identify the room.
+
+        Returns:
+            Response: JSON describing the room and its moves, or an error.
+        """
         user = g.current_user
         room = Room.query.filter_by(room_code=room_code.upper()).first()
         if not room:
@@ -735,8 +971,17 @@ def create_app():
             if winner_user:
                 last_round_winner_username = winner_user.username
 
-        # ---- won cards for each player (for UI tracker) ----
+        # ---- helper for converting cards ----
         def card_to_payload(card: Card | None):
+            """
+            Convert a Card to a lightweight JSON payload.
+
+            Args:
+                card (Card | None): Card instance or None.
+
+            Returns:
+                dict | None: Dictionary with card fields, or None.
+            """
             if not card:
                 return None
             return {
@@ -799,7 +1044,7 @@ def create_app():
                     "last_round_player1_card": p1_last_card_payload,
                     "last_round_player2_card": p2_last_card_payload,
                     "last_round_winner_username": last_round_winner_username,
-                    # NEW: won cards for each player
+                    # won cards for each player
                     "player1_won_cards": player1_won_cards,
                     "player2_won_cards": player2_won_cards,
                 },
@@ -807,11 +1052,27 @@ def create_app():
             }
         )
 
-
-
     @app.post("/api/rooms/<room_code>/play")
     @auth_required
     def play_card(room_code):
+        """
+        Play a card into the current round for the authenticated user.
+
+        Expects JSON payload with:
+        - card_id (int): ID of a card that must be in the user's active deck.
+
+        The function:
+        - Ensures the room is active and the user is part of it.
+        - Ensures the card belongs to the user's active deck.
+        - Records the card as player1 or player2's choice for the round.
+        - If both players have played, resolves the move.
+
+        Args:
+            room_code (str): Public code of the room.
+
+        Returns:
+            Response: JSON with move status, scores, and room status.
+        """
         user = g.current_user
         data = request.get_json() or {}
         card_id = data.get("card_id")
@@ -824,7 +1085,10 @@ def create_app():
             return jsonify({"error": "Room not found"}), 404
 
         if room.status != "active":
-            return jsonify({"error": f"Room is not active (status={room.status})"}), 400
+            return (
+                jsonify({"error": f"Room is not active (status={room.status})"}),
+                400,
+            )
 
         if user.id not in (room.player1_id, room.player2_id):
             return jsonify({"error": "You are not part of this room"}), 403
@@ -862,6 +1126,7 @@ def create_app():
         is_player1 = user.id == room.player1_id
 
         if not current_move:
+            # Start a new round
             round_number = last_round_number + 1
             current_move = Move(
                 room_id=room.id,
@@ -874,6 +1139,7 @@ def create_app():
             db.session.add(current_move)
             db.session.commit()
         else:
+            # Fill in the missing side of the current round
             if is_player1:
                 if current_move.player1_card_id is not None:
                     return jsonify({"error": "You already played this round"}), 400
@@ -884,6 +1150,7 @@ def create_app():
                 current_move.player2_card_id = card_id
             db.session.commit()
 
+        # Resolve the round if both players have played a card
         if (
             current_move.player1_card_id is not None
             and current_move.player2_card_id is not None
@@ -912,6 +1179,7 @@ def create_app():
         )
 
     return app
+
 
 if __name__ == "__main__":
     app = create_app()
