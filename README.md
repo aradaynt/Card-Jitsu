@@ -56,7 +56,7 @@ The Style is Monolithic
 - Password is hased before storage
 - System
     - creates a User
-    - assigns 15 random cards (UserCard rows)
+    - assigns 30 random cards (UserCard rows)
     - creates an empty Deck
 
 ### Login
