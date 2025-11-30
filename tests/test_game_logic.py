@@ -1,8 +1,23 @@
+"""
+Unit tests for core Card-Jitsu game logic functions.
+
+These tests cover:
+- Element-based card comparison (fire/grass/water).
+- Club Penguin win-condition detection.
+"""
+
 from app import create_app
 from cardjitsu.models import db, Card
 from flask import current_app
 
 def test_compare_cards_fire_beats_grass(app):
+    """
+    Test that fire beats grass according to Card-Jitsu rules.
+
+    Ensures:
+        - compare_cards() returns 1 when a fire card is compared
+          against a grass card.
+    """
     from app import compare_cards
 
     with app.app_context():
@@ -16,6 +31,13 @@ def test_compare_cards_fire_beats_grass(app):
         assert result == 1  # Fire should beat Grass
 
 def test_compare_cards_grass_beats_water(app):
+    """
+    Test that grass beats water according to Card-Jitsu rules.
+
+    Ensures:
+        - compare_cards() returns 2 when a water card is compared
+          against a grass card (meaning grass wins).
+    """
     from app import compare_cards
 
     with app.app_context():
@@ -29,6 +51,14 @@ def test_compare_cards_grass_beats_water(app):
         assert result == 2  # Grass should beat Water
 
 def test_has_club_penguin_win_three_same_element_diff_colours(app):
+    """
+    Test the Club Penguin win condition:
+    3 cards of the SAME element but with DIFFERENT colours.
+
+    Ensures:
+        - has_club_penguin_win() returns True when provided
+          three fire cards all with unique colours.
+    """
     from app import has_club_penguin_win
 
     with app.app_context():
