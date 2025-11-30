@@ -1,3 +1,17 @@
+"""
+Selenium end-to-end test for the Card-Jitsu login UI flow.
+
+This test automates a full browser session to validate that:
+- The login page loads correctly.
+- A user can enter credentials and submit the form.
+- Successful login redirects to the home page.
+- UI elements expected on the home page (welcome text, deckbuilder button)
+  are present.
+
+NOTE:
+    This test requires the Flask server to be running locally at:
+    http://localhost:5000
+"""
 import time
 
 from selenium import webdriver
@@ -7,6 +21,21 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 def run_login_flow():
+    """
+    Run a Selenium-driven login flow to verify UI functionality.
+
+    Steps performed:
+        1. Launch Chrome via webdriver_manager.
+        2. Navigate to the `/login` page.
+        3. Enter username and password.
+        4. Submit the login form.
+        5. Wait for redirect to the home page.
+        6. Assert the title contains "Card-Jitsu Home".
+        7. Verify page heading and the presence of the deckbuilder button.
+
+    Raises:
+        AssertionError: If any UI validation fails.
+    """
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
     try:
