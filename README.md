@@ -69,11 +69,11 @@ The Style is Monolithic
 
 Endpoint: GET api/user/cards
 
-- User sees their 15 assigned cards
+- User sees their 30 assigned cards
 
 ### Creating/Editing a Deck
 
-- User selects 10 of their 15 cards
+- User selects 25 of their 30 cards
 - Simple interface
 - Each card displayed with:
     - element
@@ -81,7 +81,7 @@ Endpoint: GET api/user/cards
     - colour
     - "Select"/"Deselect" button
 - Backend validates:
-    - exactly 10 cards
+    - exactly 25 cards
     - all belong to the user
 - Then updates DeckCard rows
 
