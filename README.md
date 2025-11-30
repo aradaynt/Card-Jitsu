@@ -35,7 +35,17 @@ Each card also has a power number (1-12), and a color
 </ul>
 
 ## System Architecture
-The Style will be Monolithic with MVC-like organization
+The Style is Monolithic
+
+### UML Diagrams
+
+#### UML Class Diagram
+
+<img src='./images/UMLclass.png'>
+
+#### UML Activity Diagram
+
+<img src='./images/UMLactivity.png'>
 
 
 ## How the website works
