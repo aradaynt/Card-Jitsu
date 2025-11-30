@@ -122,7 +122,7 @@ Each Round:<br>
 Relationships:<br>
 <ul>
     <li>decks, the users decks
-    <li>user_cards, the 15 base cards assigned at registration
+    <li>user_cards, the 30 base cards assigned at registration
     <li>rooms_as_p1, rooms_as_p2, rooms they are participating in
 </ul>
 
@@ -136,7 +136,7 @@ Relationships:<br>
 |colour|str|"red", "blue", "yellow", "green", "purple", "orange"|
 |name|str|"fire 12 blue"|
 
-These cards form the global card pool. User recieve 15 random ones
+These cards form the global card pool. User recieve 30 random ones
 
 ### UserCard
 
@@ -158,7 +158,7 @@ This determines which card a user can place in a deck
 |is_active|bool|
 |created_at| DateTime|
 
-A deck of exactly 10 chosen cards
+A deck of exactly 25 chosen cards
 
 ### DeckCard
 
