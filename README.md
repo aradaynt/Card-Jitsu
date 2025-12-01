@@ -3,7 +3,7 @@ Advance Web Dev project, Card-Jitsu simulator
 
 ## What is Card-Jitsu?
 <p>Card-Jitsu is a simple but strategic card game from Club Penguin.<br>Players battle using cards based on three elements</p>
-<ul><li>Fire<li>Grass<li>Snow</ul>
+<ul><li>Fire<li>Water<li>Grass</ul>
 Each card also has a power number (1-12), and a color
 
 ### Rules Summary
