@@ -36,7 +36,7 @@ Each card also has a power number (1-12), and a color
 
 ## How to run
 
-You can either open the website at (WIP)
+You can either open the website at the link we provided in the submission
 
 or 
 
@@ -275,9 +275,6 @@ docker build -t cardjitsu .
 ```powershell
 docker run -p 5000:5000 cardjitsu
 ```
-#### Step 3 Once running, the app can be accessed at:
-
-WIP
 
 ### Why Docker?
 Containerization solves:
