@@ -307,7 +307,7 @@ git pull
 docker build -t cardjitsu .
 docker stop cardjitsu || true
 docker rm cardjitsu || true
-docker run -d --name cardjitsu -p 80:5000 cardjitsu
+docker run -d --name cardjitsu -p 5000:5000 cardjitsu
 ```
 
 ### Summary of DevOps Workflow
