@@ -34,6 +34,24 @@ Each card also has a power number (1-12), and a color
     <li>HTML forms for a simple UI
 </ul>
 
+## How to run
+
+You can either open the website at (WIP)
+
+or 
+
+You can clone the repo, create a venv, and run
+```powershell
+pip install -r requirements.txt
+```
+to install the libraries
+
+Then you can run 
+```powershell
+python app.py
+```
+in the root directory
+
 ## System Architecture
 The Style is Monolithic
 
